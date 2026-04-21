@@ -1,0 +1,13 @@
+{% extends "layout.html" %}
+{% block title %}Subscription{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <h2>Subscription Unavailable (Dev mode)</h2>
+  <p>Stripe is not configured yet. To enable subscriptions, set these environment variables and restart:</p>
+  <pre>STRIPE_SECRET_KEY=sk_test_...
+STRIPE_PRICE_ID=price_...
+STRIPE_WEBHOOK_SECRET=whsec_...</pre>
+  <p>Once configured, contractors will see a Subscribe button here and in the header.</p>
+</section>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends "layout.html" %}
+{% block title %}Inbox{% endblock %}
+{% block content %}
+<section class="panel">
+  <h2 style="margin-top:0;">Inbox</h2>
+
+  {% if conversations and conversations|length %}
+    <div class="list">
+      {% for item in conversations %}
+        {% set c = item.conv %}
+        {% set other = item.other %}
+        <div class="card">
+          <div class="row" style="grid-template-columns: 3fr 1fr;">
+            <div>
+              <div style="font-weight:700;">{{ other.display_name or other.email }}</div>
+              {% if c.project_id %}
+                <div class="meta">Project conversation (ID #{{ c.project_id }})</div>
+              {% else %}
+                <div class="meta">Direct conversation</div>
+              {% endif %}
+              {% if item.last %}
+                <div class="meta">Last: {{ item.last.body[:80] }}{% if item.last.body|length > 80 %}…{% endif %} — {{ item.last.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+              {% endif %}
+            </div>
+            <div style="text-align:right;">
+              <a class="btn btn-primary" href="{{ url_for('conversation', conv_id=c.id) }}">Open</a>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="meta">No conversations yet.</div>
+  {% endif %}
+</section>
+{% endblock %}

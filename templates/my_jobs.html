@@ -1,0 +1,69 @@
+{% extends "layout.html" %}
+{% block title %}My Jobs{% endblock %}
+{% block content %}
+<section class="panel">
+  <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start;">
+    <div>
+      <h2 style="margin:0;">My Jobs</h2>
+      <div class="meta" style="margin-top:6px;">
+        All jobs awarded to you. Use filters only if you want to narrow the list.
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <a class="btn" href="{{ url_for('dashboard') }}">Dashboard</a>
+      <a class="btn btn-primary" href="{{ url_for('view_projects') }}">Browse Projects</a>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:12px;">
+    <form method="get" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+      <div style="min-width:220px;">
+        <label>Status</label>
+        <select name="status">
+          <option value="" {% if not status %}selected{% endif %}>All</option>
+          <option value="awarded" {% if status=='awarded' %}selected{% endif %}>Awarded</option>
+          <option value="in_progress" {% if status=='in_progress' %}selected{% endif %}>In Progress</option>
+          <option value="completed" {% if status=='completed' %}selected{% endif %}>Completed</option>
+        </select>
+      </div>
+
+      <div style="min-width:260px;flex:1;">
+        <label>Search</label>
+        <input name="q" value="{{ q or '' }}" placeholder="Search title, customer, location…">
+      </div>
+
+      <button class="btn btn-primary" type="submit">Apply</button>
+      <a class="btn" href="{{ url_for('my_jobs') }}">Clear</a>
+    </form>
+  </div>
+
+  {% if jobs and jobs|length %}
+    <ul class="list" style="margin-top:12px;">
+      {% for p in jobs %}
+        <li class="card">
+          <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+            <div style="min-width:260px;flex:1;">
+              <div style="font-weight:800;font-size:18px;">
+                <a href="{{ url_for('project_detail', project_id=p.id) }}">{{ p.title }}</a>
+              </div>
+              <div class="meta" style="margin-top:6px;">
+                Status: {{ (p.status or 'awarded')|replace('_',' ')|capitalize }}
+                {% if p.location %} • {{ p.location }}{% endif %}
+              </div>
+            </div>
+
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <a class="btn" href="{{ url_for('project_detail', project_id=p.id) }}">Open</a>
+              <a class="btn" href="{{ url_for('start_conversation_qs', project_id=p.id) }}">Message Customer</a>
+            </div>
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <div class="meta" style="margin-top:12px;">
+      No jobs found. (Tip: click “Clear” to show everything.)
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

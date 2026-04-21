@@ -1,0 +1,100 @@
+{% extends "layout.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<section class="panel">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+    <h2 style="margin:0;">Dashboard</h2>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <a class="btn" href="{{ url_for('contractors') }}">Find contractors</a>
+      <a class="btn" href="{{ url_for('view_projects') }}">Browse projects</a>
+      {% if active_role == 'customer' %}
+        <a class="btn btn-primary" href="{{ url_for('post_project') }}">Post a project</a>
+      {% elif active_role == 'contractor' %}
+        {% if stripe_enabled and contractor_needs_subscription %}
+          <a class="btn btn-primary" href="{{ url_for('subscribe') }}">Subscribe to bid</a>
+        {% endif %}
+        <a class="btn" href="{{ url_for('my_bids') }}">My bids</a>
+        <a class="btn" href="{{ url_for('my_jobs') }}">My jobs</a>
+        <a class="btn" href="{{ url_for('edit_profile') }}">Edit contractor profile</a>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if stripe_enabled and contractor_needs_subscription %}
+    <div class="card" style="margin-top:12px;border-color:#3b82f6;background:rgba(59,130,246,.08);">
+      <strong>Contractor subscription</strong>
+      <p class="meta" style="margin:6px 0 0;">
+        Subscribe to place bids on open jobs{% if stripe_trial_days %} (includes a <strong>{{ stripe_trial_days }}-day free trial</strong>){% endif %}. Posting projects as a customer stays free.
+      </p>
+      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+        <a class="btn btn-primary" href="{{ url_for('subscribe') }}">View plans &amp; subscribe</a>
+        <a class="btn" href="{{ url_for('account_center') }}">Billing &amp; account</a>
+      </div>
+    </div>
+  {% endif %}
+
+  <div class="row" style="margin-top:12px;">
+    <div>
+      <div class="card">
+        <h3 style="margin:0;">Notifications</h3>
+        {% if notifications and notifications|length %}
+          <ul class="list" style="margin-top:8px;">
+            {% for n in notifications %}
+              <li style="display:flex;justify-content:space-between;gap:8px;">
+                <div>
+                  <div style="font-weight:600;">{{ n.text }}</div>
+                  <div class="meta">{{ n.created_at.strftime('%Y-%m-%d %H:%M') if n.created_at else '' }}</div>
+                </div>
+                <div>
+                  {% if n.link %}<a class="btn" href="{{ n.link }}">Open</a>{% endif %}
+                  {% if not n.read %}<span class="badge">New</span>{% endif %}
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="meta" style="margin-top:8px;">No recent notifications.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <div>
+      {% if role == 'customer' %}
+        <div class="card">
+          <h3 style="margin:0;">Your Projects</h3>
+          {% if my_projects and my_projects|length %}
+            <ul class="list" style="margin-top:8px;">
+              {% for p in my_projects %}
+                <li>
+                  <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;">
+                    <div>
+                      <a href="{{ url_for('project_detail', project_id=p.id) }}">{{ p.title }}</a>
+                      <div class="meta">{{ p.category or 'General' }}</div>
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                      {% if p.status == 'awarded' and p.awarded_contractor_id %}
+                        <a class="btn" href="{{ url_for('start_conversation_qs', project_id=p.id, contractor_id=p.awarded_contractor_id) }}">Message Contractor</a>
+                        <a class="chip" href="{{ url_for('start_conversation_qs', project_id=p.id, contractor_id=p.awarded_contractor_id) }}">Awarded ▸ Chat</a>
+                      {% else %}
+                        <span class="chip">{{ p.status|capitalize }}</span>
+                      {% endif %}
+                    </div>
+                  </div>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="meta" style="margin-top:8px;">No projects yet.</p>
+          {% endif %}
+        </div>
+      {% else %}
+        <div class="card">
+          <h3 style="margin:0;">Bids Overview</h3>
+          <p style="margin-top:8px;">You have <strong>{{ my_bid_count }}</strong> total bids.</p>
+          <a class="btn" href="{{ url_for('my_bids') }}">Go to My Bids</a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</section>
+{% endblock %}

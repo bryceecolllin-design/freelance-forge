@@ -1,0 +1,28 @@
+{% extends "layout.html" %}
+{% block title %}Conversation{% endblock %}
+{% block content %}
+<section class="panel">
+  <h2 style="margin:0 0 8px 0;">Conversation with {{ other.display_name or other.email }}</h2>
+
+  <div id="msgs" class="chat-list">
+    {% for m in messages %}
+      {% set mine = (m.sender_id == current_user.id) %}
+      <div class="chat-line {{ 'right' if mine else 'left' }}">
+        <div class="bubble {{ 'mine' if mine else 'theirs' }}">
+          <div style="white-space:pre-wrap;">{{ m.body }}</div>
+          <div class="meta" style="margin-top:6px;opacity:.85;">
+            {{ m.created_at.strftime('%Y-%m-%d %H:%M') if m.created_at else '' }}
+          </div>
+        </div>
+      </div>
+    {% else %}
+      <p class="meta">No messages yet.</p>
+    {% endfor %}
+  </div>
+
+  <form method="post" style="display:flex;gap:8px;margin-top:14px;">
+    <input name="body" required placeholder="Type your message…">
+    <button class="btn btn-primary" type="submit">Send</button>
+  </form>
+</section>
+{% endblock %}

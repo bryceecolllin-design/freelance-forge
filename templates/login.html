@@ -1,0 +1,21 @@
+{% extends "layout.html" %}
+{% block title %}Login{% endblock %}
+{% block content %}
+<section class="panel" style="max-width:520px;margin:0 auto;">
+  <h2 style="margin-top:0;">Login</h2>
+  <form method="post" action="{{ url_for('login') }}" style="display:grid;gap:12px;">
+    <div>
+      <label for="email">Email</label>
+      <input id="email" type="email" name="email" required placeholder="you@example.com" autocomplete="username">
+    </div>
+    <div>
+      <label for="password">Password</label>
+      <input id="password" type="password" name="password" required autocomplete="current-password">
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button class="btn btn-primary" type="submit">Login</button>
+      <a class="btn" href="{{ url_for('register') }}">Create an account</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

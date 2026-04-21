@@ -1,0 +1,15 @@
+{% extends "layout.html" %}
+{% block title %}Welcome{% endblock %}
+{% block content %}
+<section class="panel" style="max-width:560px;margin:0 auto;text-align:center;">
+  <h2 style="margin-top:0;">You’re all set</h2>
+  <p class="meta">
+    Thanks for subscribing. Your contractor account should show as active within a moment. If you started a trial, you have full bidding access until the trial ends; manage or cancel anytime from
+    <strong>Account → Billing portal</strong>.
+  </p>
+  <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:16px;">
+    <a class="btn btn-primary" href="{{ url_for('view_projects') }}">Browse projects</a>
+    <a class="btn" href="{{ url_for('account_center') }}">Account</a>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,43 @@
+{% extends "layout.html" %}
+{% block title %}My Projects{% endblock %}
+{% block content %}
+<section class="panel">
+  <h2 style="margin-top:0;">My Projects</h2>
+
+  {% if projects and projects|length %}
+    <ul class="list">
+      {% for p in projects %}
+        <li class="card">
+          <div class="row" style="grid-template-columns: 2fr 1fr;">
+            <div>
+              <div style="font-weight:700;font-size:18px;">
+                <a href="{{ url_for('project_detail', project_id=p.id) }}">{{ p.title or 'Untitled' }}</a>
+              </div>
+              <div class="meta">
+                {{ p.category or 'General' }}
+                • {{ p.location or ('Remote' if p.is_remote else 'No location specified') }}
+                • Posted {{ (p.created_at.strftime('%Y-%m-%d %H:%M')) if p.created_at else '' }}
+              </div>
+              <div class="meta">Status: <strong>{{ (p.status or 'open')|capitalize }}</strong></div>
+
+              {% if p.awarded_contractor_id %}
+                <div style="margin-top:8px;">
+                  <a class="btn"
+                     href="{{ url_for('start_conversation', user_id=p.awarded_contractor_id) }}">
+                    Message Awarded Contractor
+                  </a>
+                </div>
+              {% endif %}
+            </div>
+            <div style="text-align:right;display:flex;gap:8px;justify-content:flex-end;align-items:start;">
+              <a class="btn btn-primary" href="{{ url_for('project_detail', project_id=p.id) }}">Manage</a>
+            </div>
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <div class="meta">You haven’t posted any projects yet.</div>
+  {% endif %}
+</section>
+{% endblock %}

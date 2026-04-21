@@ -1,0 +1,46 @@
+{% extends "layout.html" %}
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<section class="panel hero">
+  <div>
+    <h1 style="margin:0 0 8px 0;">Freelance-Forge</h1>
+    <p class="meta" style="margin:0 0 14px 0;">
+      Where customers and contractors meet — from general contracting to fabrication, design, and more.
+    </p>
+
+    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;">
+      {% if not current_user.is_authenticated %}
+        <a class="btn btn-primary" href="{{ url_for('register') }}">Get Started</a>
+        <a class="btn" href="{{ url_for('about') }}">Learn More</a>
+      {% else %}
+        <a class="btn btn-primary" href="{{ url_for('dashboard') }}">Go to Dashboard</a>
+        {% if current_user.is_customer and not current_user.is_contractor %}
+          <form action="{{ url_for('account.become_contractor') }}" method="post" style="display:inline;">
+            <button class="btn" type="submit">Become Contractor</button>
+          </form>
+        {% endif %}
+      {% endif %}
+    </div>
+
+    <img src="{{ url_for('static', filename='images/manufacturing.jpg') }}"
+         alt="Freelance-Forge hero image"
+         style="max-width:720px; width:100%; height:auto; display:block; margin:0 auto; border-radius:12px; border:1px solid var(--border); box-shadow:0 10px 30px rgba(0,0,0,.25)">
+  </div>
+</section>
+
+<section class="grid cols-3" style="gap:16px;">
+  <div class="card">
+    <h3 style="margin:0 0 8px 0;">Post a Project</h3>
+    <p class="meta">Describe your job and get competitive bids from trusted pros.</p>
+  </div>
+  <div class="card">
+    <h3 style="margin:0 0 8px 0;">Find Contractors</h3>
+    <p class="meta">Browse by skill, location, or remote availability. Pros subscribe to bid—posting stays free for customers.</p>
+  </div>
+  <div class="card">
+    <h3 style="margin:0 0 8px 0;">Message & Award</h3>
+    <p class="meta">Chat through details, then award the job with confidence.</p>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{% block title %}Freelance-Forge{% endblock %}</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    :root {
+      --bg:#111418; --panel:#1a1f24; --card:#20262c; --text:#e9eef3;
+      --muted:#98a2ad; --brand:#3b82f6; --accent:#0ea5e9; --danger:#ef4444; --ok:#22c55e;
+      --border:#2a3138; --chip:#27323a;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial}
+    a{color:var(--brand);text-decoration:none} a:hover{text-decoration:underline}
+    header{position:sticky;top:0;z-index:10;background:rgba(17,20,24,.9);backdrop-filter:blur(6px);border-bottom:1px solid var(--border)}
+    .wrap{max-width:1100px;margin:0 auto;padding:16px}
+    nav{display:flex;gap:14px;align-items:center;justify-content:space-between}
+    .nav-left,.nav-right{display:flex;gap:10px;align-items:center}
+    .badge{background:var(--chip);border:1px solid var(--border);padding:2px 8px;border-radius:999px;font-size:12px}
+    .btn{display:inline-block;background:var(--chip);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:10px}
+    .btn:hover{filter:brightness(1.05)}
+    .btn-primary{background:var(--brand);border-color:var(--brand);color:#fff}
+    .btn-danger{background:var(--danger);border-color:var(--danger);color:#fff}
+    .container{max-width:1100px;margin:24px auto;padding:0 16px}
+    .panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px}
+    .row{display:grid;gap:12px;grid-template-columns:1fr}
+    @media(min-width:800px){.row{grid-template-columns:1fr 1fr}}
+    .list{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+    .meta{color:var(--muted);font-size:14px}
+    input,select,textarea{width:100%;background:#0f1317;border:1px solid var(--border);color:var(--text);padding:10px;border-radius:10px}
+    .flash{margin:12px 0;padding:10px;border-radius:10px}
+    .flash.error{background:#3a1e1f;border:1px solid #5f2327}
+    .flash.success{background:#153522;border:1px solid #1e5e39}
+    .flash.info{background:#18293c;border:1px solid #223e5e}
+    .chip{background:var(--chip);border:1px solid var(--border);border-radius:999px;padding:4px 8px;font-size:12px}
+    .inline-input{display:flex;gap:8px;align-items:center}
+    .locate-btn{white-space:nowrap}
+
+    .site-nav{position:relative;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+    .nav-brand{font-weight:700;font-size:1.05rem;color:var(--text);letter-spacing:-0.02em}
+    .nav-brand:hover{text-decoration:none;opacity:.92}
+    .nav-toggle{display:none;align-items:center;justify-content:center;min-width:44px;min-height:44px;padding:0;background:var(--chip);border:1px solid var(--border);border-radius:10px;color:var(--text);cursor:pointer;font-size:1.25rem;line-height:1}
+    .nav-toggle:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+    .nav-links{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:flex-end;flex:1}
+    .nav-links .nav-cluster{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+    @media(max-width:900px){
+      .nav-toggle{display:flex}
+      .nav-links{display:none;width:100%;flex-direction:column;align-items:stretch;padding:12px 0 4px;border-top:1px solid var(--border);margin-top:4px}
+      .nav-links.open{display:flex}
+      .nav-links .nav-cluster{flex-direction:column;align-items:stretch}
+      .nav-links .btn{text-align:center}
+    }
+    .site-footer{margin-top:48px;padding:24px 16px;border-top:1px solid var(--border);color:var(--muted);font-size:14px;text-align:center}
+    .site-footer a{color:var(--muted)}
+    .site-footer a:hover{color:var(--brand)}
+
+    /* ---- chat bubbles (moved here so conversation.html has zero CSS) ---- */
+    .chat-list{display:flex;flex-direction:column;gap:12px}
+    .chat-line{display:flex}
+    .chat-line.right{justify-content:flex-end}
+    .chat-line.left{justify-content:flex-start}
+    .bubble{max-width:72%;padding:10px 12px;border-radius:14px;line-height:1.35;display:inline-block}
+    .bubble.mine{background:var(--brand);color:#fff}
+    .bubble.theirs{background:#2a3138;color:#e9eef3}
+  </style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <nav class="site-nav" id="site-nav" aria-label="Main">
+      <a class="nav-brand" href="{{ url_for('home') }}">Freelance-Forge</a>
+      <button type="button" class="nav-toggle" id="nav-toggle" aria-expanded="false" aria-controls="nav-links" aria-label="Open menu">☰</button>
+      <div class="nav-links" id="nav-links">
+        <div class="nav-cluster">
+          <a class="btn" href="{{ url_for('about') }}">About</a>
+          <a class="btn" href="{{ url_for('contact') }}">Contact</a>
+          {% if current_user.is_authenticated %}
+            <a class="btn btn-primary" href="{{ url_for('dashboard') }}">Dashboard</a>
+            <a class="btn" href="{{ url_for('view_projects') }}">Projects</a>
+            <a class="btn" href="{{ url_for('contractors') }}">Contractors</a>
+            <a class="btn" href="{{ url_for('inbox') }}">
+              Inbox {% if unread_messages_count %}<span class="badge">{{ unread_messages_count }}</span>{% endif %}
+            </a>
+            <a class="btn" href="{{ url_for('notifications') }}">
+              Notifications {% if notifications_unread %}<span class="badge">{{ notifications_unread }}</span>{% endif %}
+            </a>
+            <a class="btn" href="{{ url_for('account_center') }}">Account</a>
+          {% endif %}
+        </div>
+        <div class="nav-cluster">
+          {% if current_user.is_authenticated %}
+            <span class="chip" title="What you’re doing on the site right now">Role: {{ active_role|capitalize }}</span>
+            {% if active_role == 'customer' and current_user.is_contractor %}
+              <a class="btn" href="{{ url_for('switch_role', to='contractor') }}">Switch to contractor</a>
+            {% elif active_role == 'contractor' and current_user.is_customer %}
+              <a class="btn" href="{{ url_for('switch_role', to='customer') }}">Switch to customer</a>
+            {% endif %}
+            {% if stripe_enabled and contractor_needs_subscription %}
+              <a class="btn btn-primary" href="{{ url_for('subscribe') }}">Subscribe to bid</a>
+            {% endif %}
+            {% if not current_user.is_contractor %}
+              <a class="btn" href="{{ url_for('account.become_contractor') }}">Become a contractor</a>
+            {% endif %}
+            <a class="btn" href="{{ url_for('logout') }}">Log out</a>
+          {% else %}
+            <a class="btn" href="{{ url_for('login') }}">Log in</a>
+            <a class="btn btn-primary" href="{{ url_for('register') }}">Get started</a>
+          {% endif %}
+        </div>
+      </div>
+    </nav>
+  </div>
+</header>
+
+<div class="container">
+  {% for cat,msg in get_flashed_messages(with_categories=true) %}
+    <div class="flash {{ cat }}">{{ msg }}</div>
+  {% endfor %}
+  {% block content %}{% endblock %}
+</div>
+
+<footer class="site-footer">
+  <div class="wrap" style="max-width:1100px;margin:0 auto;">
+    <p style="margin:0 0 8px;">
+      <a href="{{ url_for('home') }}">Home</a>
+      ·       <a href="{{ url_for('about') }}">About</a>
+      · <a href="{{ url_for('contact') }}">Contact</a>
+      {% if current_user.is_authenticated %}
+        · <a href="{{ url_for('dashboard') }}">Dashboard</a>
+      {% else %}
+        · <a href="{{ url_for('login') }}">Log in</a>
+      {% endif %}
+    </p>
+    <p style="margin:0;font-size:13px;">Customers post for free. Contractors subscribe to bid on open jobs.</p>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var nav = document.getElementById('site-nav');
+  var btn = document.getElementById('nav-toggle');
+  var links = document.getElementById('nav-links');
+  if(!btn || !links) return;
+  btn.addEventListener('click', function(){
+    var open = links.classList.toggle('open');
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    btn.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+  });
+  nav.querySelectorAll('a.btn').forEach(function(a){
+    a.addEventListener('click', function(){
+      if(window.matchMedia('(max-width:900px)').matches){
+        links.classList.remove('open');
+        btn.setAttribute('aria-expanded', 'false');
+        btn.setAttribute('aria-label', 'Open menu');
+      }
+    });
+  });
+})();
+
+async function geocodeNormalize(place){
+  if(!place) return null;
+  try{
+    const q = encodeURIComponent(place);
+    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us&q=${q}`;
+    const res = await fetch(url, {headers:{'Accept':'application/json','User-Agent':'FreelanceForge/1.0'}});
+    if(!res.ok) return null;
+    const arr = await res.json();
+    if(!arr || !arr.length) return null;
+    const first = arr[0];
+    const label = first.display_name;
+    return {lat: parseFloat(first.lat), lon: parseFloat(first.lon), label};
+  }catch(e){ return null; }
+}
+
+document.addEventListener('click', async (ev)=>{
+  const btn = ev.target.closest('.locate-btn');
+  if(!btn) return;
+  const sel = btn.getAttribute('data-target');
+  const input = sel ? document.querySelector(sel) : null;
+  if(!input) return;
+  btn.disabled = true;
+  const orig = input.value.trim();
+  const found = await geocodeNormalize(orig);
+  if(found){
+    input.value = found.label;
+    const lat = document.querySelector(btn.getAttribute('data-lat'));
+    const lon = document.querySelector(btn.getAttribute('data-lon'));
+    if(lat) lat.value = found.lat;
+    if(lon) lon.value = found.lon;
+  }else{
+    alert('Could not find that location. Try a city, state or ZIP.');
+  }
+  btn.disabled = false;
+});
+</script>
+</body>
+</html>

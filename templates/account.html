@@ -1,0 +1,48 @@
+{% extends "layout.html" %}
+{% block title %}Account{% endblock %}
+{% block content %}
+<section class="panel">
+  <h2 style="margin:0 0 8px 0;">Account</h2>
+
+  <div class="card" style="margin-top:8px;">
+    <h3 style="margin:0;">Contractor subscription</h3>
+    <p class="meta" style="margin-top:6px;">
+      Only <strong>contractors</strong> need a subscription to place bids. Customer accounts are free.
+    </p>
+    {% if not current_user.is_contractor %}
+      <p class="meta" style="margin-top:8px;">You’re not set up as a contractor yet — no subscription needed for posting or hiring.</p>
+    {% else %}
+      <p class="meta" style="margin-top:8px;">
+        Bidding status:
+        {% if current_user.subscription_active %}
+          <span class="chip" style="background:#173b28;border-color:#1e5e39;">Active</span>
+        {% else %}
+          <span class="chip" style="background:#3a1e1f;border-color:#5f2327;">Not subscribed</span>
+        {% endif %}
+      </p>
+    {% endif %}
+    {% if stripe_enabled and current_user.is_contractor %}
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+        {% if not current_user.subscription_active %}
+          <a class="btn btn-primary" href="{{ url_for('subscribe') }}">Subscribe to bid</a>
+        {% endif %}
+        {% if current_user.subscription_active or current_user.stripe_customer_id %}
+          <a class="btn" href="{{ url_for('billing_portal') }}">Billing portal</a>
+        {% endif %}
+      </div>
+      {% if stripe_trial_days %}
+        <p class="meta" style="margin-top:8px;">New contractor subscriptions include a <strong>{{ stripe_trial_days }}-day trial</strong>. Cancel or update payment methods in the billing portal.</p>
+      {% endif %}
+    {% elif not stripe_enabled %}
+      <p class="meta" style="margin-top:8px;">Payments aren’t configured on this server yet (add Stripe keys to enable subscriptions).</p>
+    {% endif %}
+  </div>
+
+  <div class="card" style="margin-top:12px;">
+    <h3 style="margin:0;">Danger Zone</h3>
+    <form method="post" action="{{ url_for('account_delete') }}" onsubmit="return confirm('Delete your account and all data? This cannot be undone.');" style="margin-top:8px;">
+      <button class="btn btn-danger" type="submit">Delete My Account</button>
+    </form>
+  </div>
+</section>
+{% endblock %}

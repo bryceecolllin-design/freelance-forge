@@ -1,0 +1,64 @@
+{% extends "layout.html" %}
+{% block title %}My Bids{% endblock %}
+{% block content %}
+<section class="panel">
+  <h2 style="margin-top:0;">My Bids</h2>
+
+  {% if bids and bids|length %}
+    <ul class="list">
+      {% for b in bids %}
+        <li class="card">
+          <div class="row" style="grid-template-columns: 2fr 1fr;">
+            <div>
+              <div style="font-weight:700;font-size:18px;">
+                {% if b.project %}
+                  <a href="{{ url_for('project_detail', project_id=b.project_id) }}">
+                    {{ b.project.title or 'Project' }}
+                  </a>
+                {% else %}
+                  Project (unavailable)
+                {% endif %}
+              </div>
+
+              <div class="meta">
+                Bid: ${{ '{:.2f}'.format(b.price) }} •
+                {{ b.created_at.strftime('%Y-%m-%d %H:%M') if b.created_at else '' }}
+                {% if b.project %}
+                  • Status: {{ (b.project.status or 'open')|capitalize }}
+                  • {{ b.project.location or ('Remote' if b.project.is_remote else 'No location') }}
+                {% endif %}
+              </div>
+
+              {% if b.message %}
+                <div class="meta" style="margin-top:4px;">“{{ b.message }}”</div>
+              {% endif %}
+
+              {% if b.project %}
+                <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
+                  <!-- Contractor messages the customer (owner) -->
+                  <a class="btn"
+                     href="{{ url_for('start_conversation_qs', project_id=b.project_id) }}">
+                    Message Customer
+                  </a>
+
+                  <a class="btn btn-primary" href="{{ url_for('project_detail', project_id=b.project_id) }}">
+                    View Project
+                  </a>
+                </div>
+              {% endif %}
+            </div>
+
+            <div style="text-align:right;">
+              {% if b.project and b.project.status == 'awarded' and b.project.awarded_contractor_id == current_user.id %}
+                <span class="badge">Awarded to you</span>
+              {% endif %}
+            </div>
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <div class="meta">You haven’t placed any bids yet.</div>
+  {% endif %}
+</section>
+{% endblock %}

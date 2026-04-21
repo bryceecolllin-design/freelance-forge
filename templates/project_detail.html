@@ -1,0 +1,206 @@
+{% extends "layout.html" %}
+{% block title %}Project: {{ project.title }}{% endblock %}
+{% block content %}
+<section class="panel">
+  <h2 style="margin-top:0;">{{ project.title }}</h2>
+  <div class="meta">
+    {{ project.category or 'General' }} •
+    {{ project.location or ('Remote' if project.is_remote else 'No location') }} •
+    Status: {{ (project.status or 'open')|capitalize }} •
+    Posted {{ project.created_at.strftime('%Y-%m-%d %H:%M') if project.created_at else '' }}
+  </div>
+
+  {% if project.awarded_contractor_id %}
+    <div class="meta" style="margin-top:8px;">
+      Awarded to:
+      <a href="{{ url_for('contractor_profile', user_id=project.awarded_contractor_id) }}">View Contractor</a>
+    </div>
+  {% endif %}
+
+  {% if project.description %}
+    <div class="card" style="margin-top:12px;">
+      <h3 style="margin:0;">Description</h3>
+      <p style="margin:8px 0 0;">{{ project.description }}</p>
+    </div>
+  {% endif %}
+
+  {% if attachments and attachments|length %}
+    <div class="card" style="margin-top:12px;">
+      <h3 style="margin:0;">Attachments</h3>
+      <ul class="list" style="margin-top:8px;">
+        {% for a in attachments %}
+          <li>
+            <a href="{{ url_for('uploads', name=a.stored_path.split('/')[-1]) }}" download>
+              {{ a.original_name }}
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+
+  {% if project.lat is not none and project.lon is not none %}
+    <div class="card" style="margin-top:12px;">
+      <h3 style="margin:0;">Location</h3>
+      <div id="proj-map"
+           data-lat="{{ project.lat }}"
+           data-lon="{{ project.lon }}"
+           data-title="{{ (project.title or 'Project')|e }}"
+           style="height:300px;margin-top:8px;border-radius:8px;"></div>
+
+      <script>
+        (function(){
+          var el = document.getElementById('proj-map');
+          if (!el || typeof L === 'undefined') return;
+
+          var lat = parseFloat(el.getAttribute('data-lat'));
+          var lon = parseFloat(el.getAttribute('data-lon'));
+          var title = el.getAttribute('data-title') || 'Project';
+
+          if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+
+          var map = L.map('proj-map').setView([lat, lon], 11);
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19}).addTo(map);
+          var m = L.marker([lat, lon]).addTo(map);
+          m.bindPopup(title);
+        })();
+      </script>
+    </div>
+  {% endif %}
+
+  {# Management controls #}
+  {% if project.awarded_contractor_id %}
+    {% if current_user.id == project.awarded_contractor_id %}
+      <div class="card" style="margin-top:12px;">
+        <h3 style="margin:0;">Update Status</h3>
+        <form method="post" action="{{ url_for('update_project_status', project_id=project.id) }}" style="display:flex;gap:8px;margin-top:8px;">
+          <select name="status">
+            <option value="in_progress" {{ 'selected' if project.status=='in_progress' else '' }}>In Progress</option>
+            <option value="completed" {{ 'selected' if project.status=='completed' else '' }}>Completed</option>
+            <option value="canceled" {{ 'selected' if project.status=='canceled' else '' }}>Canceled</option>
+          </select>
+          <button class="btn btn-primary" type="submit">Update</button>
+        </form>
+      </div>
+    {% endif %}
+  {% else %}
+    {% if is_owner %}
+      <div class="card" style="margin-top:12px;">
+        <h3 style="margin:0;">Manage Status (pre-award)</h3>
+        <form method="post" action="{{ url_for('update_project_status', project_id=project.id) }}" style="display:flex;gap:8px;margin-top:8px;">
+          <select name="status">
+            <option value="open" {{ 'selected' if project.status=='open' else '' }}>Open</option>
+            <option value="canceled" {{ 'selected' if project.status=='canceled' else '' }}>Canceled</option>
+          </select>
+          <button class="btn btn-primary" type="submit">Update</button>
+        </form>
+      </div>
+    {% endif %}
+  {% endif %}
+
+  {% if is_owner and project.status == 'completed' and project.awarded_contractor_id %}
+    <div class="card" style="margin-top:12px;">
+      <h3 style="margin:0;">Leave a Review</h3>
+      {% if existing_review %}
+        <p class="meta" style="margin-top:8px;">You already reviewed this project.</p>
+      {% else %}
+        <form method="post" action="{{ url_for('submit_review', project_id=project.id) }}" style="display:grid;gap:10px;margin-top:8px;">
+          <div class="row">
+            <div>
+              <label for="rating">Rating</label>
+              <select id="rating" name="rating" required>
+                <option value="">Select…</option>
+                <option value="5">★★★★★ (5)</option>
+                <option value="4">★★★★☆ (4)</option>
+                <option value="3">★★★☆☆ (3)</option>
+                <option value="2">★★☆☆☆ (2)</option>
+                <option value="1">★☆☆☆☆ (1)</option>
+              </select>
+            </div>
+            <div>
+              <label for="text">Comment (optional)</label>
+              <input id="text" name="text" placeholder="How did it go?">
+            </div>
+          </div>
+          <button class="btn btn-primary" type="submit">Submit Review</button>
+        </form>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  {# Bidding: contractors only; subscription required when Stripe billing is enabled #}
+  {% if can_bid %}
+    <div class="card" style="margin-top:12px;">
+      <h3 style="margin:0;">Place a Bid</h3>
+      {% if needs_sub_to_bid %}
+        <p class="meta" style="margin-top:8px;">
+          Contractor subscriptions unlock bidding on posted jobs. Customers can still post projects for free.
+        </p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center;">
+          <a class="btn btn-primary" href="{{ url_for('subscribe') }}">Subscribe to bid</a>
+          <a class="btn" href="{{ url_for('account_center') }}">Account &amp; billing</a>
+        </div>
+      {% else %}
+        <form method="post" style="display:grid;gap:10px;margin-top:8px;">
+          <div class="row">
+            <div>
+              <label for="price">Your price (USD)</label>
+              <input id="price" name="price" type="number" step="0.01" min="0" required>
+            </div>
+            <div>
+              <label for="msg">Message (optional)</label>
+              <input id="msg" name="message" placeholder="Brief note to the customer">
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button class="btn btn-primary" type="submit">Submit Bid</button>
+            <a class="btn" href="{{ url_for('start_conversation_qs', project_id=project.id) }}">Message Customer</a>
+          </div>
+        </form>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  <div class="card" style="margin-top:12px;">
+    <h3 style="margin:0;">Bids ({{ bids|length }})</h3>
+
+    {% if bids and bids|length %}
+      <ul class="list" style="margin-top:8px;">
+        {% for b in bids %}
+          <li>
+            <div class="row" style="grid-template-columns: 2fr 1fr;">
+              <div>
+                <div style="font-weight:700;">
+                  <a href="{{ url_for('contractor_profile', user_id=b.contractor_id) }}">
+                    {{ b.contractor.display_name or b.contractor.email }}
+                  </a>
+                </div>
+                <div class="meta">
+                  ${{ '{:.2f}'.format(b.price) }} • {{ b.created_at.strftime('%Y-%m-%d %H:%M') if b.created_at else '' }}
+                </div>
+                {% if b.message %}
+                  <div class="meta" style="margin-top:4px;">“{{ b.message }}”</div>
+                {% endif %}
+              </div>
+
+              <div style="text-align:right;display:flex;gap:8px;justify-content:flex-end;align-items:start;">
+                {% if is_owner and project.status == 'open' %}
+                  <a class="btn"
+                     href="{{ url_for('start_conversation_qs', project_id=project.id, contractor_id=b.contractor_id) }}">
+                    Message Contractor
+                  </a>
+                  <form method="post" action="{{ url_for('accept_bid', project_id=project.id, bid_id=b.id) }}" onsubmit="return confirm('Award this bid?');">
+                    <button class="btn btn-primary" type="submit">Award</button>
+                  </form>
+                {% endif %}
+              </div>
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <div class="meta">No bids yet.</div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

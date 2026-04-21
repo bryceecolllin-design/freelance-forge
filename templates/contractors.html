@@ -1,0 +1,173 @@
+{% extends "layout.html" %}
+{% block title %}Find Contractors{% endblock %}
+{% block content %}
+<section class="panel">
+  <h2 style="margin-top:0;">Contractors</h2>
+
+  <form method="get" style="display:grid;gap:10px;margin-bottom:12px;">
+    <div class="row">
+      <div>
+        <label>Search</label>
+        <input name="q" value="{{ q or '' }}" placeholder="Skills, name, keyword…">
+      </div>
+      <div>
+        <label>Location</label>
+        <div class="inline-input">
+          <input id="contractors-location" name="location" value="{{ location or '' }}" placeholder="City, state or ZIP">
+          <button type="button" class="btn locate-btn" data-target="#contractors-location">Normalize</button>
+        </div>
+        {% if search_label %}<div class="meta" style="margin-top:4px;">Map: {{ search_label }}</div>{% endif %}
+      </div>
+      <div>
+        <label>Remote</label>
+        <select name="remote_ok">
+          <option value="">Any</option>
+          <option value="1" {{ 'selected' if remote_ok else '' }}>Open to remote</option>
+        </select>
+      </div>
+    </div>
+    <div><button class="btn btn-primary" type="submit">Filter</button></div>
+  </form>
+
+  <div class="card">
+    <div id="contractors-map" style="height:320px;border-radius:8px;"></div>
+  </div>
+
+  {% if contractors and contractors|length %}
+    <ul class="list" style="margin-top:12px;">
+      {% for u in contractors %}
+        <li class="card">
+          <div class="row" style="grid-template-columns: 2fr 1fr;">
+            <div>
+              <div style="font-weight:700;font-size:18px;">
+                <a href="{{ url_for('contractor_profile', user_id=u.id) }}">
+                  {{ (u.profile.display_name or u.display_name or u.email) }}
+                </a>
+              </div>
+              <div class="meta">
+                {% if u._rating_count %}
+                  ★ {{ '%.2f'|format(u._rating_avg) }} ({{ u._rating_count }})
+                {% else %}
+                  No reviews yet
+                {% endif %}
+                • {{ (u.profile.location if u.profile and u.profile.location else 'No location') }}
+                {% if u.profile and u.profile.remote_ok %} • Remote OK{% endif %}
+              </div>
+              {% if u.profile and u.profile.skills %}
+                <div class="meta" style="margin-top:6px;">{{ u.profile.skills }}</div>
+              {% endif %}
+              <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
+                <a class="btn" href="{{ url_for('start_conversation', user_id=u.id) }}">Message</a>
+
+                {% if u.profile and u.profile.lat is not none and u.profile.lon is not none %}
+                  <button
+                    class="btn show-on-map"
+                    type="button"
+                    data-lat="{{ '%.6f'|format(u.profile.lat) }}"
+                    data-lon="{{ '%.6f'|format(u.profile.lon) }}"
+                    data-name="{{ (u.profile.display_name or u.display_name or u.email)|e }}"
+                  >
+                    Show on map
+                  </button>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <div class="meta">No contractors found.</div>
+  {% endif %}
+</section>
+
+<!-- JSON payload built via a Jinja for-loop (no comprehensions) -->
+<script id="contractor-data" type="application/json">[
+{% set first = true %}
+{% for u in contractors %}
+  {% if u.profile and u.profile.lat is not none and u.profile.lon is not none %}
+    {% if not first %},{% endif %}
+    { "lat": {{ '%.6f'|format(u.profile.lat) }}, "lon": {{ '%.6f'|format(u.profile.lon) }}, "name": {{ (u.profile.display_name or u.display_name or u.email)|tojson }} }
+    {% set first = false %}
+  {% endif %}
+{% endfor %}
+]</script>
+
+<!-- Static JS: read JSON and wire up the map & buttons -->
+<script>
+(function(){
+  if (typeof L === 'undefined') return;
+
+  var mapEl = document.getElementById('contractors-map');
+  if (!mapEl) return;
+
+  var map = L.map('contractors-map').setView([39.5, -98.35], 4); // US default center
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19}).addTo(map);
+
+  var dataTag = document.getElementById('contractor-data');
+  var data = [];
+  try {
+    data = JSON.parse(dataTag.textContent || '[]');
+  } catch (e) {
+    data = [];
+  }
+
+  var markers = [];
+  for (var i = 0; i < data.length; i++) {
+    var d = data[i];
+    if (!d) continue;
+    var lat = Number(d.lat), lon = Number(d.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+    var m = L.marker([lat, lon]).addTo(map).bindPopup(d.name || 'Contractor');
+    markers.push({m:m, lat:lat, lon:lon});
+  }
+
+  var searchLat = {{ search_lat|tojson }};
+  var searchLon = {{ search_lon|tojson }};
+  var searchLabel = {{ (search_label or '')|tojson }};
+  if (searchLat != null && searchLon != null && Number.isFinite(Number(searchLat)) && Number.isFinite(Number(searchLon))) {
+    var slat = Number(searchLat), slon = Number(searchLon);
+    L.marker([slat, slon]).addTo(map).bindPopup('Your search' + (searchLabel ? ': ' + searchLabel : ''));
+    var b = [];
+    for (var bi = 0; bi < markers.length; bi++) {
+      b.push(markers[bi].m.getLatLng());
+    }
+    b.push(L.latLng(slat, slon));
+    if (b.length === 1) {
+      map.setView([slat, slon], 10);
+    } else if (b.length > 1) {
+      map.fitBounds(L.latLngBounds(b), { padding: [24, 24], maxZoom: 11 });
+    }
+  } else if (markers.length) {
+    var bb = [];
+    for (var bj = 0; bj < markers.length; bj++) bb.push(markers[bj].m.getLatLng());
+    map.fitBounds(L.latLngBounds(bb), { padding: [20, 20] });
+  }
+
+  function focusMap(lat, lon) {
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+    map.setView([lat, lon], 12);
+    // Open nearest marker popup
+    var found = null, best = Infinity;
+    for (var i=0; i<markers.length; i++) {
+      var ll = markers[i].m.getLatLng();
+      var dlat = ll.lat - lat, dlon = ll.lng - lon;
+      var dist2 = dlat*dlat + dlon*dlon;
+      if (dist2 < best) { best = dist2; found = markers[i]; }
+    }
+    if (found) found.m.openPopup();
+  }
+
+  // Hook up all "Show on map" buttons
+  var buttons = document.querySelectorAll('.show-on-map');
+  for (var j = 0; j < buttons.length; j++) {
+    buttons[j].addEventListener('click', function(ev){
+      var btn = ev.currentTarget;
+      var lat = parseFloat(btn.getAttribute('data-lat'));
+      var lon = parseFloat(btn.getAttribute('data-lon'));
+      focusMap(lat, lon);
+    });
+  }
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,74 @@
+{% extends "layout.html" %}
+{% block title %}Post a Project{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <h2>Post a New Project</h2>
+  <form method="post" class="row" enctype="multipart/form-data">
+    <div>
+      <label>Project Title</label>
+      <input type="text" name="title" required>
+    </div>
+
+    <div>
+      <label>Description</label>
+      <textarea name="description" rows="6" required></textarea>
+    </div>
+
+    <div class="row cols-2">
+      <div>
+        <label>Category</label>
+        <select name="category" id="category" required>
+          {% for c in categories %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+        </select>
+      </div>
+      <div id="other-wrap" style="display:none;">
+        <label>Custom Category</label>
+        <input type="text" name="other_category" placeholder="e.g., Masonry, Tiling">
+      </div>
+    </div>
+
+    <div class="row cols-2">
+      <div>
+        <label>Location (City/Address for on-site work)</label>
+        <input type="text" name="location" placeholder="e.g., Toledo, OH">
+        <div style="margin-top:6px;">
+          <button class="btn btn-ghost" type="button" onclick="useMyLoc('proj_lat','proj_lon')">Use project location = my current location</button>
+        </div>
+        <input type="hidden" name="lat" id="proj_lat">
+        <input type="hidden" name="lon" id="proj_lon">
+        <div class="meta">If this project requires on-site work (e.g., painting), please set an approximate location. Leave blank if fully remote.</div>
+      </div>
+      <div>
+        <label><input type="checkbox" name="is_remote"> Remote / Ship OK</label>
+        <div class="meta">For design, 3D printing, parts that can be shipped, etc.</div>
+      </div>
+    </div>
+
+    <div>
+      <label>Attachments (images/PDFs)</label>
+      <input type="file" name="files" multiple accept=".png,.jpg,.jpeg,.gif,.webp,.pdf">
+      <div class="meta">You can also add files later from the project page.</div>
+    </div>
+
+    <div>
+      <button class="btn btn-primary" type="submit">Submit Project</button>
+    </div>
+  </form>
+</section>
+
+<script>
+function useMyLoc(latId, lonId){
+  if(!navigator.geolocation){ alert("Geolocation not supported."); return; }
+  navigator.geolocation.getCurrentPosition(function(pos){
+    document.getElementById(latId).value = pos.coords.latitude;
+    document.getElementById(lonId).value = pos.coords.longitude;
+    alert("Project location set.");
+  }, function(){ alert("Couldn't get your location."); });
+}
+const select = document.getElementById('category');
+const otherWrap = document.getElementById('other-wrap');
+function toggleOther(){ otherWrap.style.display = (select.value === 'Other') ? 'block' : 'none'; }
+select.addEventListener('change', toggleOther); toggleOther();
+</script>
+{% endblock %}

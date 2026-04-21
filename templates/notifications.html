@@ -1,0 +1,59 @@
+{% extends "layout.html" %}
+{% block title %}Notifications{% endblock %}
+{% block content %}
+
+<section class="panel">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
+    <div>
+      <h2 style="margin:0;">Notifications</h2>
+      <div class="meta" style="margin-top:6px;">
+        Your most recent notifications appear at the top.
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <form method="post" action="{{ url_for('notifications_read_all') }}">
+        <button class="btn" type="submit">Mark all read</button>
+      </form>
+      <a class="btn btn-primary" href="{{ url_for('dashboard') }}">Back to Dashboard</a>
+    </div>
+  </div>
+
+  {% if notifications and notifications|length %}
+    <ul class="list" style="margin-top:12px;">
+      {% for n in notifications %}
+        <li class="card" style="position:relative;">
+
+          {% if not n.read %}
+            <span class="badge" style="position:absolute;top:10px;right:10px;">New</span>
+          {% endif %}
+
+          <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start;">
+            <div style="min-width:260px;flex:1;">
+              <div style="font-weight:800;font-size:16px;">
+                {{ n.text }}
+              </div>
+
+              <div class="meta" style="margin-top:8px;opacity:.85;">
+                {{ n.created_at.strftime('%Y-%m-%d %H:%M') if n.created_at else '' }}
+              </div>
+            </div>
+
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+              {% if n.link %}
+                <a class="btn btn-primary" href="{{ n.link }}">Open</a>
+              {% endif %}
+
+              <a class="btn" href="{{ url_for('inbox') }}">Inbox</a>
+            </div>
+          </div>
+
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <div class="meta" style="margin-top:12px;">No notifications yet.</div>
+  {% endif %}
+</section>
+
+{% endblock %}

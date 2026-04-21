@@ -1,0 +1,26 @@
+{% extends "layout.html" %}
+{% block title %}Subscription unavailable{% endblock %}
+{% block content %}
+<section class="panel" style="max-width:720px;margin:0 auto;">
+  <h2 style="margin-top:0;">Subscriptions not configured</h2>
+  <p class="meta">
+    Contractor billing runs through Stripe. Set these environment variables on the server, create a
+    <strong>recurring Price</strong> in the Stripe Dashboard, then restart the app:
+  </p>
+  <pre style="background:#0f1317;border:1px solid var(--border);padding:12px;border-radius:10px;overflow:auto;font-size:13px;">SECRET_KEY=your-long-random-string
+STRIPE_SECRET_KEY=sk_live_... or sk_test_...
+STRIPE_PRICE_ID=price_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+STRIPE_TRIAL_DAYS=15</pre>
+  <p class="meta" style="margin-top:12px;">
+    In Stripe Dashboard → <strong>Settings → Customer portal</strong>, turn on the billing portal so contractors can cancel or update cards.
+    Add a webhook endpoint for <code style="background:var(--chip);padding:2px 6px;border-radius:4px;">/stripe/webhook</code>
+    (use your public URL, e.g. <code>https://yourdomain.com/stripe/webhook</code>) and listen for
+    <code style="background:var(--chip);padding:2px 6px;border-radius:4px;">checkout.session.completed</code>,
+    <code style="background:var(--chip);padding:2px 6px;border-radius:4px;">customer.subscription.updated</code>, and
+    <code style="background:var(--chip);padding:2px 6px;border-radius:4px;">customer.subscription.deleted</code>.
+  </p>
+  <p class="meta">Until then, if Stripe is disabled, bidding may be allowed without a subscription (development only).</p>
+  <a class="btn" href="{{ url_for('dashboard') }}">Back to dashboard</a>
+</section>
+{% endblock %}

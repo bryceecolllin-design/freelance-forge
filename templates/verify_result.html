@@ -1,0 +1,19 @@
+{% extends "layout.html" %}
+{% block title %}Email Verification{% endblock %}
+{% block content %}
+<section class="panel" style="max-width:720px;margin:0 auto;">
+  {% if status == 'success' %}
+    <h2>Email Verified ✅</h2>
+    <p>Your email has been verified. You can now post projects or place bids.</p>
+    <p><a class="btn btn-primary" href="/dashboard">Go to Dashboard</a></p>
+  {% elif status == 'expired' %}
+    <h2>Link Expired ⏳</h2>
+    <p>Your verification link expired. Please request a new one.</p>
+    <p><a class="btn btn-primary" href="/resend-verification">Resend Verification</a></p>
+  {% else %}
+    <h2>Invalid Link ❌</h2>
+    <p>The verification link is invalid. Please request a new one.</p>
+    <p><a class="btn btn-primary" href="/resend-verification">Resend Verification</a></p>
+  {% endif %}
+</section>
+{% endblock %}

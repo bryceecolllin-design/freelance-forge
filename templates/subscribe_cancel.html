@@ -1,0 +1,12 @@
+{% extends "layout.html" %}
+{% block title %}Checkout canceled{% endblock %}
+{% block content %}
+<section class="panel" style="max-width:560px;margin:0 auto;text-align:center;">
+  <h2 style="margin-top:0;">Checkout canceled</h2>
+  <p class="meta">No charges were made. You can subscribe anytime from your account when you’re ready to bid.</p>
+  <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:16px;">
+    <a class="btn btn-primary" href="{{ url_for('subscribe') }}">Try again</a>
+    <a class="btn" href="{{ url_for('dashboard') }}">Dashboard</a>
+  </div>
+</section>
+{% endblock %}

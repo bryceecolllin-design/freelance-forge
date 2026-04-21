@@ -1,0 +1,164 @@
+{% extends "layout.html" %}
+{% block title %}Projects{% endblock %}
+{% block content %}
+<section class="panel">
+  <h2 style="margin-top:0;">Open Projects</h2>
+
+  <form method="get" action="{{ url_for('view_projects') }}" style="display:grid;gap:10px;margin:12px 0;">
+    <div class="row">
+      <div>
+        <label for="q">Search</label>
+        <input id="q" name="q" value="{{ q or '' }}" placeholder="keyword…">
+      </div>
+      <div>
+        <label for="location">Location</label>
+        <div class="inline-input">
+          <input class="geo-autocomplete" id="location" name="location" value="{{ location or '' }}" placeholder="City, State or ZIP">
+          <button type="button" class="btn locate-btn" data-target="#location">Normalize</button>
+        </div>
+        {% if search_label %}<div class="meta" style="margin-top:4px;">Map: {{ search_label }}</div>{% endif %}
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label for="category">Category</label>
+        <select id="category" name="category">
+          <option value="">Any</option>
+          {% for c in categories %}
+            <option value="{{ c }}" {{ 'selected' if category==c else '' }}>{{ c }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div style="display:flex;align-items:end;gap:12px;">
+        <label style="margin:0;">
+          <input type="checkbox" name="remote_ok" value="1" {{ 'checked' if remote_ok else '' }}>
+          Remote-friendly
+        </label>
+        <button class="btn btn-primary" type="submit">Filter</button>
+      </div>
+    </div>
+  </form>
+
+  {% if active_role == 'customer' %}
+    <div class="panel" style="margin-top:10px;">
+      <a class="btn btn-primary" href="{{ url_for('post_project') }}">+ Post a Project</a>
+    </div>
+  {% endif %}
+
+  <div class="row" style="grid-template-columns: 2fr 3fr; gap:16px;">
+    <div class="card" style="max-height:540px; overflow:auto;">
+      {% if projects %}
+        <ul class="list" id="proj-list">
+          {% for p in projects %}
+            <li id="proj-row-{{ p.id }}"
+                data-proj-id="{{ p.id }}"
+                data-title="{{ (p.title or '')|e }}"
+                data-lat="{{ p.lat if p.lat is not none else '' }}"
+                data-lon="{{ p.lon if p.lon is not none else '' }}">
+              <div class="row" style="grid-template-columns: 3fr 1fr;">
+                <div>
+                  <div style="font-weight:700;">{{ p.title }}</div>
+                  <div class="meta">{{ p.category or 'General' }} • {{ p.location or ('Remote' if p.is_remote else 'No location specified') }}</div>
+                  <div class="meta">Status: {{ p.status|capitalize }}</div>
+                </div>
+                <div style="text-align:right;">
+                  <a class="btn" href="{{ url_for('project_detail', project_id=p.id) }}">View</a>
+                </div>
+              </div>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="meta">No projects match your filters.</div>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">Map</h3>
+      <div id="projects-map" style="height:480px; border-radius:8px;"></div>
+
+      <script id="projects-json" type="application/json">
+        [
+          {% for p in projects %}
+            {
+              "id": {{ p.id|default(0) }},
+              "title": {{ (p.title|default(''))|tojson }},
+              "lat": {{ (p.lat|default(None))|tojson }},
+              "lon": {{ (p.lon|default(None))|tojson }},
+              "url": {{ (url_for('project_detail', project_id=p.id)|default(''))|tojson }}
+            }{{ "," if not loop.last }}
+          {% endfor %}
+        ]
+      </script>
+
+      <script>
+        (function(){
+          var container = document.getElementById('projects-map');
+          if (!container) return;
+
+          var map = L.map('projects-map').setView([39.5, -98.35], 4);
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19}).addTo(map);
+
+          var dataEl = document.getElementById('projects-json');
+          var items = [];
+          try { items = JSON.parse(dataEl.textContent || '[]'); } catch (e) { items = []; }
+
+          var markers = {};
+          var bounds = [];
+
+          items.forEach(function(it){
+            if (it.lat !== null && it.lon !== null) {
+              var m = L.marker([Number(it.lat), Number(it.lon)]).addTo(map);
+              m.bindPopup('<strong>' + (it.title || 'Project') + '</strong><br><a href="'+ it.url +'">Open</a>');
+              markers[it.id] = m;
+              bounds.push([Number(it.lat), Number(it.lon)]);
+            }
+          });
+
+          var sLat = {{ search_lat|tojson }};
+          var sLon = {{ search_lon|tojson }};
+          var sLabel = {{ (search_label or '')|tojson }};
+          if (sLat != null && sLon != null && Number.isFinite(Number(sLat)) && Number.isFinite(Number(sLon))) {
+            var slat = Number(sLat), slon = Number(sLon);
+            L.marker([slat, slon]).addTo(map).bindPopup('Your search' + (sLabel ? ': ' + sLabel : ''));
+            bounds.push([slat, slon]);
+          }
+
+          if (bounds.length === 1) {
+            map.setView(bounds[0], 10);
+          } else if (bounds.length > 1) {
+            map.fitBounds(bounds, { padding: [20,20] });
+          }
+
+          var list = document.getElementById('proj-list');
+          if (list) {
+            list.addEventListener('click', function(e){
+              var li = e.target.closest('li[data-proj-id]');
+              if (!li) return;
+              var id = Number(li.dataset.projId);
+              if (markers[id]) {
+                var pos = markers[id].getLatLng();
+                map.flyTo(pos, 11);
+                markers[id].openPopup();
+                highlightRow(li);
+              }
+            });
+          }
+          function highlightRow(li){
+            var rows = document.querySelectorAll('#proj-list li');
+            rows.forEach(function(r){ r.style.background=''; });
+            li.style.background = 'rgba(124,180,255,.12)';
+          }
+          Object.keys(markers).forEach(function(idStr){
+            var id = Number(idStr);
+            markers[id].on('click', function(){
+              var row = document.getElementById('proj-row-'+id);
+              if (row) highlightRow(row);
+            });
+          });
+        })();
+      </script>
+    </div>
+  </div>
+</section>
+{% endblock %}

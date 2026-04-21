@@ -1,0 +1,80 @@
+{% extends "layout.html" %}
+{% block title %}Edit Profile{% endblock %}
+{% block content %}
+<section class="panel" style="max-width:820px;margin:0 auto;">
+  <h2 style="margin-top:0;">Contractor Profile</h2>
+
+  {% if not current_user.is_contractor %}
+    <div class="alert alert-info">You’re currently a customer only.
+      <form action="{{ url_for('account.become_contractor') }}" method="post" style="display:inline;">
+        <button class="btn btn-primary" type="submit">Become a Contractor</button>
+      </form>
+    </div>
+  {% endif %}
+
+  <form method="post" enctype="multipart/form-data" style="display:grid;gap:12px;">
+
+    <div class="card" style="display:grid;gap:8px;">
+      <h3 style="margin:0;">Profile Photo</h3>
+      <div style="display:flex;align-items:center;gap:12px;">
+        {% if photo_url %}
+          <img src="{{ photo_url }}" alt="Profile photo" style="height:80px;border-radius:10px;">
+        {% else %}
+          <div class="meta">No photo uploaded yet.</div>
+        {% endif %}
+        <input id="photo" type="file" name="photo" accept=".jpg,.jpeg,.png,.gif,.webp">
+      </div>
+      <div class="meta">Supported: JPG, PNG, GIF, WEBP</div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label for="display_name">Display name</label>
+        <input id="display_name" name="display_name" value="{{ profile.display_name or current_user.display_name or current_user.email }}">
+      </div>
+      <div>
+        <label for="location">Location</label>
+        <input class="geo-autocomplete" id="location" name="location" value="{{ profile.location or '' }}" placeholder="City, State or ZIP">
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label for="portfolio_url">Portfolio URL (optional)</label>
+        <input id="portfolio_url" name="portfolio_url" value="{{ profile.portfolio_url or '' }}" placeholder="https://…">
+      </div>
+      <div style="display:flex;align-items:end;">
+        <label style="margin:0;">
+          <input type="checkbox" name="remote_ok" value="1" {% if profile.remote_ok %}checked{% endif %}>
+          Remote-friendly
+        </label>
+      </div>
+    </div>
+
+    <div>
+      <label for="skills">Skills / Services</label>
+      <textarea id="skills" name="skills" placeholder="e.g., CAD, 3D printing, machining…">{{ profile.skills or '' }}</textarea>
+    </div>
+
+    <div class="row">
+      <div>
+        <label for="experience">Experience</label>
+        <textarea id="experience" name="experience" placeholder="Years in field, notable projects…">{{ profile.experience or '' }}</textarea>
+      </div>
+      <div>
+        <label for="education">Education</label>
+        <textarea id="education" name="education" placeholder="Degrees, certifications…">{{ profile.education or '' }}</textarea>
+      </div>
+    </div>
+
+    <!-- Hidden lat/lon filled by autocomplete selection -->
+    <input type="hidden" name="lat" id="lat" value="{{ profile.lat if profile.lat is not none else '' }}">
+    <input type="hidden" name="lon" id="lon" value="{{ profile.lon if profile.lon is not none else '' }}">
+
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button class="btn btn-primary" type="submit">Save Profile</button>
+      <a class="btn" href="{{ url_for('contractor_profile', user_id=current_user.id) }}">View public profile</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

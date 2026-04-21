@@ -1,0 +1,23 @@
+{% extends "layout.html" %}
+{% block title %}Contractor subscription{% endblock %}
+{% block content %}
+<section class="panel" style="max-width:640px;margin:0 auto;">
+  <h1 style="margin:0 0 8px 0;font-size:1.5rem;">Subscribe to bid on jobs</h1>
+  <p class="meta" style="margin:0 0 16px;">
+    Your subscription covers <strong>bidding access</strong> for your contractor account. Customers can post projects for free;
+    you’re only charged this membership to submit bids on open listings.
+  </p>
+  <ul class="list" style="margin:0 0 16px;padding-left:1.2rem;">
+    {% if stripe_trial_days %}
+      <li class="meta"><strong>{{ stripe_trial_days }}-day free trial</strong> — full bidding access during the trial; add a card at checkout (you are not charged until the trial ends)</li>
+    {% endif %}
+    <li class="meta">Place bids on any open project that fits your skills</li>
+    <li class="meta">Manage payment methods and invoices in Stripe’s secure billing portal</li>
+    <li class="meta">Cancel anytime from Account → Billing portal (no long-term lock-in)</li>
+  </ul>
+  <form method="post" action="{{ url_for('subscribe') }}">
+    <button class="btn btn-primary" type="submit">Continue to secure checkout</button>
+    <a class="btn" href="{{ url_for('account_center') }}">Back to account</a>
+  </form>
+</section>
+{% endblock %}

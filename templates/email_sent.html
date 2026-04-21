@@ -1,0 +1,10 @@
+{% extends "layout.html" %}
+{% block title %}Verify Your Email{% endblock %}
+{% block content %}
+<section class="panel" style="max-width:720px;margin:0 auto;">
+  <h2>Verify Your Email</h2>
+  <p>We’ve “sent” a verification link to <strong>{{ email }}</strong>.</p>
+  <p class="meta">In development, use the link below to verify immediately:</p>
+  <p><a class="btn btn-primary" href="{{ verify_url }}">Verify Now</a></p>
+</section>
+{% endblock %}

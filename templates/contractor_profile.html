@@ -1,0 +1,112 @@
+{% extends "layout.html" %}
+{% block title %}Contractor: {{ user.display_name or user.email }}{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="row" style="grid-template-columns: 2fr 1fr;">
+    <div>
+      <h2 style="margin-top:0;">{{ profile.display_name or user.display_name or user.email }}</h2>
+      <div class="meta">
+        {% if review_count and avg_rating %}
+          ★ {{ '%.2f'|format(avg_rating) }} ({{ review_count }} review{{ '' if review_count==1 else 's' }})
+          •
+        {% endif %}
+        {{ profile.location or 'No location' }}
+        {% if profile.remote_ok %} • Open to remote{% endif %}
+      </div>
+
+      {% if profile.skills %}
+        <div class="card" style="margin-top:12px;">
+          <h3 style="margin:0;">Skills</h3>
+          <p style="margin:8px 0 0; white-space:pre-wrap;">{{ profile.skills }}</p>
+        </div>
+      {% endif %}
+
+      {% if profile.bio %}
+        <div class="card" style="margin-top:12px;">
+          <h3 style="margin:0;">About</h3>
+          <p style="margin:8px 0 0; white-space:pre-wrap;">{{ profile.bio }}</p>
+        </div>
+      {% endif %}
+
+      {% if profile.experience or profile.education %}
+        <div class="card" style="margin-top:12px;">
+          <h3 style="margin:0;">Background</h3>
+          {% if profile.experience %}
+            <p style="margin:8px 0 0;"><strong>Experience:</strong> {{ profile.experience }}</p>
+          {% endif %}
+          {% if profile.education %}
+            <p style="margin:8px 0 0;"><strong>Education:</strong> {{ profile.education }}</p>
+          {% endif %}
+        </div>
+      {% endif %}
+
+      {% if profile.portfolio_url %}
+        <div class="card" style="margin-top:12px;">
+          <h3 style="margin:0;">Portfolio</h3>
+          <p style="margin:8px 0 0;"><a href="{{ profile.portfolio_url }}" target="_blank" rel="noopener">View portfolio</a></p>
+        </div>
+      {% endif %}
+
+      <div class="card" style="margin-top:12px;">
+        <h3 style="margin:0;">Reviews ({{ review_count }})</h3>
+        {% if reviews and reviews|length %}
+          <ul class="list" style="margin-top:8px;">
+            {% for r in reviews %}
+              <li>
+                <div style="display:flex;justify-content:space-between;gap:8px;">
+                  <div>
+                    <strong>Rating:</strong> {{ '★' * r.rating }}{{ '☆' * (5 - r.rating) }}
+                    {% if r.text %}<div class="meta" style="margin-top:4px;">“{{ r.text }}”</div>{% endif %}
+                  </div>
+                  <div class="meta">{{ r.created_at.strftime('%Y-%m-%d') if r.created_at else '' }}</div>
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="meta" style="margin-top:8px;">No reviews yet.</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div>
+      <div class="card" style="text-align:center;">
+        {% if photo_url %}
+          <img src="{{ photo_url }}" alt="Profile photo" style="max-width:100%;border-radius:12px;">
+        {% else %}
+          <div class="meta">No photo uploaded</div>
+        {% endif %}
+        {% if current_user.id == user.id %}
+          <div style="margin-top:10px;">
+            <a class="btn btn-primary" href="{{ url_for('edit_profile') }}">Edit Profile</a>
+          </div>
+        {% endif %}
+      </div>
+
+      {% if profile and profile.lat is not none and profile.lon is not none %}
+        <div class="card" style="margin-top:12px;">
+          <h3 style="margin:0;">Location</h3>
+          <div id="profile-map"
+               data-lat="{{ profile.lat }}"
+               data-lon="{{ profile.lon }}"
+               data-title="{{ (profile.display_name or user.display_name or user.email)|e }}"
+               style="height:240px;margin-top:8px;border-radius:8px;"></div>
+          <script>
+            (function(){
+              var el = document.getElementById('profile-map');
+              if (!el || typeof L === 'undefined') return;
+              var lat = parseFloat(el.getAttribute('data-lat'));
+              var lon = parseFloat(el.getAttribute('data-lon'));
+              var title = el.getAttribute('data-title') || 'Contractor';
+              if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+              var map = L.map('profile-map').setView([lat, lon], 11);
+              L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19}).addTo(map);
+              L.marker([lat, lon]).addTo(map).bindPopup(title);
+            })();
+          </script>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</section>
+{% endblock %}
