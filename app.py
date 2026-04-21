@@ -34,11 +34,23 @@ except Exception:
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+
+def _database_uri() -> str:
+    """Railway/Heroku often set DATABASE_URL (Postgres). Otherwise local SQLite file."""
+    url = (os.environ.get("DATABASE_URL") or "").strip()
+    if url:
+        # Some hosts use postgres:// which SQLAlchemy rejects
+        if url.startswith("postgres://"):
+            url = "postgresql://" + url[len("postgres://") :]
+        return url
+    return "sqlite:///" + os.path.join(BASE_DIR, "site.db")
+
+
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "dev-secret-change-me")
 
 # DB
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + os.path.join(BASE_DIR, "site.db")
+app.config["SQLALCHEMY_DATABASE_URI"] = _database_uri()
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
 
@@ -260,8 +272,10 @@ def verify_user_password(user: "User", plain: str) -> bool:
 
 
 def ensure_schema():
-    """Create tables and apply lightweight SQLite migrations."""
+    """Create tables; apply legacy ALTERs only for old SQLite DBs missing columns."""
     db.create_all()
+    if db.engine.dialect.name != "sqlite":
+        return
     insp = inspect(db.engine)
     if not insp.has_table("user"):
         return
@@ -690,6 +704,11 @@ def logout():
     return redirect(url_for("home"))
 
 # -------------------- Core pages --------------------
+@app.route("/health")
+def health():
+    return "OK"
+
+
 @app.route("/")
 def home():
     return render_template("index.html")
