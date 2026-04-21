@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import logging
 import datetime as dt
 import urllib.error
 import urllib.parse
@@ -33,25 +34,35 @@ except Exception:
     stripe = None
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+_LOG = logging.getLogger(__name__)
 
 
 def _database_uri() -> str:
-    """Railway/Heroku often set DATABASE_URL (Postgres). Otherwise local SQLite file."""
+    """Railway sets DATABASE_URL (Postgres). Otherwise SQLite under a writable path."""
     url = (os.environ.get("DATABASE_URL") or "").strip()
     if url:
-        # Some hosts use postgres:// which SQLAlchemy rejects
         if url.startswith("postgres://"):
             url = "postgresql://" + url[len("postgres://") :]
         return url
-    return "sqlite:///" + os.path.join(BASE_DIR, "site.db")
+    # Prefer legacy root site.db if present (existing installs); else instance/ (common on PaaS)
+    legacy = os.path.join(BASE_DIR, "site.db")
+    if os.path.isfile(legacy):
+        return "sqlite:///" + legacy.replace("\\", "/")
+    inst = os.path.join(BASE_DIR, "instance")
+    os.makedirs(inst, exist_ok=True)
+    path = os.path.join(inst, "site.db").replace("\\", "/")
+    return "sqlite:///" + path
 
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "dev-secret-change-me")
 
 # DB
-app.config["SQLALCHEMY_DATABASE_URI"] = _database_uri()
+_db_uri = _database_uri()
+app.config["SQLALCHEMY_DATABASE_URI"] = _db_uri
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+if _db_uri.startswith("postgresql"):
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True}
 db = SQLAlchemy(app)
 
 # Uploads
@@ -1353,8 +1364,16 @@ def uploads(name):
     return send_from_directory(UPLOAD_DIR, name)
 
 # -------------------- Run --------------------
-with app.app_context():
-    ensure_schema()
+def init_database():
+    """Run after app exists; failures are logged so Gunicorn can still serve /health."""
+    with app.app_context():
+        try:
+            ensure_schema()
+        except Exception:
+            _LOG.exception("Database initialization failed (app will still load; fix DB config)")
+
+
+init_database()
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "5000"))
