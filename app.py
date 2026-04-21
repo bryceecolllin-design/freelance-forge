@@ -720,6 +720,12 @@ def health():
     return "OK"
 
 
+@app.route("/ping")
+def ping():
+    """Minimal route for load balancers / hang diagnostics (no DB, no templates)."""
+    return "pong"
+
+
 @app.route("/")
 def home():
     return render_template("index.html")
@@ -1373,7 +1379,12 @@ def init_database():
             _LOG.exception("Database initialization failed (app will still load; fix DB config)")
 
 
-init_database()
+if os.environ.get("SKIP_DB_INIT", "").strip().lower() in ("1", "true", "yes"):
+    _LOG.warning(
+        "SKIP_DB_INIT is set — skipped database init at startup (diagnostic only; unset for normal operation)"
+    )
+else:
+    init_database()
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "5000"))
