@@ -1338,4 +1338,11 @@ with app.app_context():
     ensure_schema()
 
 if __name__ == "__main__":
-    app.run(debug=True, use_reloader=False)
+    port = int(os.environ.get("PORT", "5000"))
+    # Railway and other hosts inject PORT; bind all interfaces for containers.
+    app.run(
+        host="0.0.0.0",
+        port=port,
+        debug=os.environ.get("FLASK_DEBUG") == "1",
+        use_reloader=False,
+    )
