@@ -1,4 +1,8 @@
 # Railway config-as-code: https://docs.railway.com/reference/config-as-code
+#
+# IMPORTANT (Networking tab): Public domain "-> Port" must match $PORT (often 8080).
+# If it says -> Port 5000 but Gunicorn listens on 8080, browsers get Railway's 502 page
+# while internal health checks can still pass.
 [deploy]
 startCommand = "gunicorn wsgi:application --bind 0.0.0.0:$PORT --timeout 120 --access-logfile - --error-logfile -"
 # Default health check on "/" can hang if Flask/DB is slow; /ping is answered in wsgi.py before Flask.
