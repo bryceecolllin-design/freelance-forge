@@ -2,6 +2,7 @@ import os
 import re
 import json
 import logging
+import threading
 import datetime as dt
 import urllib.error
 import urllib.parse
@@ -70,8 +71,15 @@ _db_uri = _database_uri()
 app.config["SQLALCHEMY_DATABASE_URI"] = _db_uri
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 if _db_uri.startswith("postgresql"):
-    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True}
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+        "pool_pre_ping": True,
+        "connect_args": {"connect_timeout": 10},
+    }
 db = SQLAlchemy(app)
+
+# DB init runs lazily (not at import) so Gunicorn can boot and /ping works even if Postgres is slow.
+_db_init_lock = threading.Lock()
+_db_init_done = False
 
 # Uploads
 UPLOAD_DIR = os.path.join(BASE_DIR, "static", "uploads")
@@ -1373,24 +1381,35 @@ def uploads(name):
 
 # -------------------- Run --------------------
 def init_database():
-    """Run after app exists; failures must not kill the worker (Railway / Gunicorn)."""
-    try:
-        with app.app_context():
-            ensure_schema()
-    except Exception:
-        import traceback
+    """Create tables once per process. Not run at import — avoids blocking Gunicorn worker boot."""
+    global _db_init_done
+    with _db_init_lock:
+        if _db_init_done:
+            return
+        try:
+            with app.app_context():
+                ensure_schema()
+        except Exception:
+            import traceback
 
-        print("DB INIT FAILED:", flush=True)
-        traceback.print_exc()
-        _LOG.exception("Database initialization failed (app will still load; fix DB config)")
+            print("DB INIT FAILED:", flush=True)
+            traceback.print_exc()
+            _LOG.exception("Database initialization failed (app will still load; fix DB config)")
+        finally:
+            _db_init_done = True
 
 
-if os.environ.get("SKIP_DB_INIT", "").strip().lower() in ("1", "true", "yes"):
-    _LOG.warning(
-        "SKIP_DB_INIT is set — skipped database init at startup (diagnostic only; unset for normal operation)"
-    )
-else:
+@app.before_request
+def _lazy_init_database():
+    """Skip for health probes so /ping and /health never wait on Postgres."""
+    if request.endpoint in ("ping", "health"):
+        return
+    if os.environ.get("SKIP_DB_INIT", "").strip().lower() in ("1", "true", "yes"):
+        return
     init_database()
+
+
+print("Flask app import finished (DB init deferred until first non-ping request)", flush=True)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "5000"))
