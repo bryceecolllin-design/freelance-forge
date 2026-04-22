@@ -55,6 +55,14 @@ def _database_uri() -> str:
 
 
 app = Flask(__name__)
+
+
+@app.route("/ping")
+def ping():
+    """Registered first so it stays available even if later startup work misbehaves."""
+    return "pong", 200
+
+
 app.secret_key = os.getenv("SECRET_KEY", "dev-secret-change-me")
 
 # DB
@@ -720,12 +728,6 @@ def health():
     return "OK"
 
 
-@app.route("/ping")
-def ping():
-    """Minimal route for load balancers / hang diagnostics (no DB, no templates)."""
-    return "pong"
-
-
 @app.route("/")
 def home():
     return render_template("index.html")
@@ -1371,12 +1373,16 @@ def uploads(name):
 
 # -------------------- Run --------------------
 def init_database():
-    """Run after app exists; failures are logged so Gunicorn can still serve /health."""
-    with app.app_context():
-        try:
+    """Run after app exists; failures must not kill the worker (Railway / Gunicorn)."""
+    try:
+        with app.app_context():
             ensure_schema()
-        except Exception:
-            _LOG.exception("Database initialization failed (app will still load; fix DB config)")
+    except Exception:
+        import traceback
+
+        print("DB INIT FAILED:", flush=True)
+        traceback.print_exc()
+        _LOG.exception("Database initialization failed (app will still load; fix DB config)")
 
 
 if os.environ.get("SKIP_DB_INIT", "").strip().lower() in ("1", "true", "yes"):
