@@ -1,0 +1,6 @@
+# Railway config-as-code: https://docs.railway.com/reference/config-as-code
+[deploy]
+startCommand = "gunicorn wsgi:application --bind 0.0.0.0:$PORT --timeout 120 --access-logfile - --error-logfile -"
+# Default health check on "/" can hang if Flask/DB is slow; /ping is answered in wsgi.py before Flask.
+healthcheckPath = "/ping"
+healthcheckTimeout = 300
