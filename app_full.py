@@ -1402,6 +1402,10 @@ def init_database():
 @app.before_request
 def _lazy_init_database():
     """Skip for health probes so /ping and /health never wait on Postgres."""
+    # Use path, not endpoint — endpoint can be unset in some phases and would wrongly run DB init on /ping.
+    path = (request.path or "").rstrip("/") or "/"
+    if path in ("/ping", "/health"):
+        return
     if request.endpoint in ("ping", "health"):
         return
     if os.environ.get("SKIP_DB_INIT", "").strip().lower() in ("1", "true", "yes"):
