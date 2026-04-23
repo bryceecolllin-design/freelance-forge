@@ -4,32 +4,22 @@
 {% block content %}
 <section class="panel hero home-hero">
   <div class="home-hero__mosaic">
-    <img class="home-hero__img" src="{{ url_for('static', filename='images/Freelance-forge home.png') }}"
-         alt="Montage of trades: fabrication, construction, machining, painting, and design"
+    <img class="home-hero__img" src="{{ url_for('static', filename='images/freelance-forgehome.png') }}"
+         alt="Freelance-Forge: trades from fabrication to design and engineering"
          width="1536" height="1024" loading="eager" decoding="async">
-    <div class="home-hero__veil" aria-hidden="true"></div>
-    <div class="home-hero__content">
-      <h1 class="visually-hidden">Freelance-Forge</h1>
-      <div class="hero-head">
-        <img class="hero-brand-logo" src="{{ url_for('static', filename='images/logo-lg.png') }}"
-             alt="" decoding="async">
-      </div>
-      <p class="home-hero__tagline">
-        Where customers and contractors meet — from general contracting to fabrication, design, and more.
-      </p>
-      <div class="home-hero__actions">
-        {% if not current_user.is_authenticated %}
-          <a class="btn btn-primary" href="{{ url_for('register') }}">Get Started</a>
-          <a class="btn" href="{{ url_for('about') }}">Learn More</a>
-        {% else %}
-          <a class="btn btn-primary" href="{{ url_for('dashboard') }}">Go to Dashboard</a>
-          {% if current_user.is_customer and not current_user.is_contractor %}
-            <form action="{{ url_for('account.become_contractor') }}" method="post">
-              <button class="btn" type="submit">Become Contractor</button>
-            </form>
-          {% endif %}
+    <h1 class="visually-hidden">Freelance-Forge</h1>
+    <div class="home-hero__actions-wrap" role="group" aria-label="Account actions">
+      {% if not current_user.is_authenticated %}
+        <a class="btn btn-primary" href="{{ url_for('register') }}">Get Started</a>
+        <a class="btn" href="{{ url_for('about') }}">Learn More</a>
+      {% else %}
+        <a class="btn btn-primary" href="{{ url_for('dashboard') }}">Go to Dashboard</a>
+        {% if current_user.is_customer and not current_user.is_contractor %}
+          <form action="{{ url_for('account.become_contractor') }}" method="post">
+            <button class="btn" type="submit">Become Contractor</button>
+          </form>
         {% endif %}
-      </div>
+      {% endif %}
     </div>
   </div>
 </section>
