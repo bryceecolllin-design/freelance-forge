@@ -43,8 +43,11 @@
     .locate-btn{white-space:nowrap}
 
     .site-nav{position:relative;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
-    .nav-brand{font-weight:700;font-size:1.05rem;color:var(--text);letter-spacing:-0.02em}
+    .nav-brand{display:inline-flex;align-items:center;gap:8px;font-weight:700;font-size:1.05rem;color:var(--text);letter-spacing:-0.02em}
     .nav-brand:hover{text-decoration:none;opacity:.92}
+    .nav-brand-logo{height:32px;width:auto;max-width:160px;object-fit:contain;display:block;flex-shrink:0}
+    .visually-hidden{position:absolute !important;width:1px !important;height:1px !important;padding:0 !important;margin:-1px !important;overflow:hidden !important;clip:rect(0,0,0,0) !important;clip-path:inset(50%) !important;white-space:nowrap !important;border:0 !important}
+    .hero-brand-logo{max-width:min(440px,100%);height:auto;display:block}
     .nav-toggle{display:none;align-items:center;justify-content:center;min-width:44px;min-height:44px;padding:0;background:var(--chip);border:1px solid var(--border);border-radius:10px;color:var(--text);cursor:pointer;font-size:1.25rem;line-height:1}
     .nav-toggle:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
     .nav-links{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:flex-end;flex:1}
@@ -74,7 +77,9 @@
 <header>
   <div class="wrap">
     <nav class="site-nav" id="site-nav" aria-label="Main">
-      <a class="nav-brand" href="{{ url_for('home') }}">Freelance-Forge</a>
+      <a class="nav-brand" href="{{ url_for('home') }}">Freelance-Forge
+        <img class="nav-brand-logo" src="{{ url_for('static', filename='images/logo-sm.png') }}" alt="" decoding="async">
+      </a>
       <button type="button" class="nav-toggle" id="nav-toggle" aria-expanded="false" aria-controls="nav-links" aria-label="Open menu">☰</button>
       <div class="nav-links" id="nav-links">
         <div class="nav-cluster">
