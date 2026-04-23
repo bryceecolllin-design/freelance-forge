@@ -2,34 +2,35 @@
 {% block title %}Home{% endblock %}
 
 {% block content %}
-<section class="panel hero">
-  <div>
-    <div class="hero-head">
+<section class="panel hero home-hero">
+  <div class="home-hero__mosaic">
+    <img class="home-hero__img" src="{{ url_for('static', filename='photos/home-hero.png') }}"
+         alt="Montage of trades: fabrication, construction, machining, painting, and design"
+         width="1024" height="682" loading="eager" decoding="async">
+    <div class="home-hero__veil" aria-hidden="true"></div>
+    <div class="home-hero__content">
       <h1 class="visually-hidden">Freelance-Forge</h1>
-      <img class="hero-brand-logo" src="{{ url_for('static', filename='images/logo-lg.png') }}"
-           alt="" decoding="async">
-    </div>
-    <p class="meta" style="margin:0 0 12px 0;">
-      Where customers and contractors meet — from general contracting to fabrication, design, and more.
-    </p>
-
-    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;">
-      {% if not current_user.is_authenticated %}
-        <a class="btn btn-primary" href="{{ url_for('register') }}">Get Started</a>
-        <a class="btn" href="{{ url_for('about') }}">Learn More</a>
-      {% else %}
-        <a class="btn btn-primary" href="{{ url_for('dashboard') }}">Go to Dashboard</a>
-        {% if current_user.is_customer and not current_user.is_contractor %}
-          <form action="{{ url_for('account.become_contractor') }}" method="post" style="display:inline;">
-            <button class="btn" type="submit">Become Contractor</button>
-          </form>
+      <div class="hero-head">
+        <img class="hero-brand-logo" src="{{ url_for('static', filename='images/logo-lg.png') }}"
+             alt="" decoding="async">
+      </div>
+      <p class="home-hero__tagline">
+        Where customers and contractors meet — from general contracting to fabrication, design, and more.
+      </p>
+      <div class="home-hero__actions">
+        {% if not current_user.is_authenticated %}
+          <a class="btn btn-primary" href="{{ url_for('register') }}">Get Started</a>
+          <a class="btn" href="{{ url_for('about') }}">Learn More</a>
+        {% else %}
+          <a class="btn btn-primary" href="{{ url_for('dashboard') }}">Go to Dashboard</a>
+          {% if current_user.is_customer and not current_user.is_contractor %}
+            <form action="{{ url_for('account.become_contractor') }}" method="post">
+              <button class="btn" type="submit">Become Contractor</button>
+            </form>
+          {% endif %}
         {% endif %}
-      {% endif %}
+      </div>
     </div>
-
-    <img src="{{ url_for('static', filename='images/manufacturing.jpg') }}"
-         alt="Freelance-Forge hero image"
-         style="max-width:720px; width:100%; height:auto; display:block; margin:0 auto; border-radius:12px; border:1px solid var(--border); box-shadow:0 10px 30px rgba(0,0,0,.25)">
   </div>
 </section>
 
