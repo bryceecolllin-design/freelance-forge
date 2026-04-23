@@ -4,10 +4,12 @@
 {% block content %}
 <section class="panel hero">
   <div>
-    <h1 class="visually-hidden">Freelance-Forge</h1>
-    <img class="hero-brand-logo" src="{{ url_for('static', filename='images/logo-lg.png') }}"
-         alt="" style="margin:0 0 8px 0" decoding="async">
-    <p class="meta" style="margin:0 0 14px 0;">
+    <div class="hero-head">
+      <h1 class="visually-hidden">Freelance-Forge</h1>
+      <img class="hero-brand-logo" src="{{ url_for('static', filename='images/logo-lg.png') }}"
+           alt="" decoding="async">
+    </div>
+    <p class="meta" style="margin:0 0 12px 0;">
       Where customers and contractors meet — from general contracting to fabrication, design, and more.
     </p>
 
