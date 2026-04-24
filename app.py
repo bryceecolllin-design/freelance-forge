@@ -736,6 +736,12 @@ def health():
     return "OK"
 
 
+@app.route("/google59fc0a6306e5df48.html")
+def google_site_verification():
+    """Google Search Console HTML file verification (file must live in project root)."""
+    return send_from_directory(BASE_DIR, "google59fc0a6306e5df48.html")
+
+
 @app.route("/")
 def home():
     return render_template("index.html")
