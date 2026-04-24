@@ -96,9 +96,9 @@ STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
 STRIPE_PRICE_ID = os.getenv("STRIPE_PRICE_ID", "")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
 try:
-    STRIPE_TRIAL_DAYS = max(0, int(os.getenv("STRIPE_TRIAL_DAYS", "15")))
+    STRIPE_TRIAL_DAYS = max(0, int(os.getenv("STRIPE_TRIAL_DAYS", "60")))
 except ValueError:
-    STRIPE_TRIAL_DAYS = 15
+    STRIPE_TRIAL_DAYS = 60
 stripe_enabled = bool(STRIPE_SECRET_KEY and STRIPE_PRICE_ID and stripe is not None)
 if stripe_enabled:
     stripe.api_key = STRIPE_SECRET_KEY
