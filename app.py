@@ -17,7 +17,7 @@ from decimal import Decimal
 
 from flask import (
     Flask, render_template, redirect, url_for, flash, session,
-    request, send_from_directory, abort, jsonify
+    request, send_from_directory, abort, jsonify, Response,
 )
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import (
@@ -35,6 +35,8 @@ except Exception:
     stripe = None
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# Public site URL for sitemap / absolute links (override on Railway preview if needed).
+CANONICAL_SITE_URL = (os.environ.get("CANONICAL_URL") or "https://freelance-forge.com").rstrip("/")
 _LOG = logging.getLogger(__name__)
 
 
@@ -740,6 +742,31 @@ def health():
 def google_site_verification():
     """Google Search Console HTML file verification (file must live in project root)."""
     return send_from_directory(BASE_DIR, "google59fc0a6306e5df48.html")
+
+
+@app.route("/sitemap.xml")
+def sitemap():
+    """Static URL list for search engines (submit in Google Search Console)."""
+    paths = (
+        "/",
+        "/projects",
+        "/contractors",
+        "/login",
+        "/register",
+        "/about",
+        "/contact",
+    )
+    parts = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    ]
+    for path in paths:
+        loc = f"{CANONICAL_SITE_URL}{path}"
+        parts.append("  <url>")
+        parts.append(f"    <loc>{loc}</loc>")
+        parts.append("  </url>")
+    parts.append("</urlset>")
+    return Response("\n".join(parts) + "\n", mimetype="application/xml")
 
 
 @app.route("/")
