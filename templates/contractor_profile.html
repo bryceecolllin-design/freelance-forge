@@ -2,9 +2,37 @@
 {% block title %}Contractor: {{ user.display_name or user.email }}{% endblock %}
 {% block content %}
 <section class="panel">
+  {% if show_no_dm_banner %}
+    <div class="flash info" style="margin-bottom:16px;">
+      This contractor isn’t accepting <strong>direct messages</strong> through the directory yet (subscription unlocks that for pros).
+      <strong>Post a project</strong> to reach them and collect bids—same marketplace flow as always.
+      <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px;">
+        <a class="btn btn-primary" href="{{ url_for('post_project') }}">Post a project</a>
+        <a class="btn" href="{{ url_for('view_projects') }}">Browse open projects</a>
+      </div>
+    </div>
+  {% endif %}
+  {% if is_self and stripe_enabled and not user.subscription_active %}
+    <div class="flash info" style="margin-bottom:16px;">
+      Subscribe to show as <strong>available for direct contact</strong> when customers browse the directory. You can still find work by <strong>bidding on posted jobs</strong> once you’re set up to bid.
+      <div style="margin-top:12px;">
+        <a class="btn btn-primary" href="{{ url_for('subscribe') }}">View subscription</a>
+      </div>
+    </div>
+  {% endif %}
+
   <div class="row" style="grid-template-columns: 2fr 1fr;">
     <div>
       <h2 style="margin-top:0;">{{ profile.display_name or user.display_name or user.email }}</h2>
+      {% if stripe_enabled %}
+        <div style="margin:8px 0 4px 0;">
+          {% if user.subscription_active %}
+            <span class="chip" style="background:#153522;border-color:#1e5e39;">Available for direct contact</span>
+          {% else %}
+            <span class="chip">Profile only — post a project to connect</span>
+          {% endif %}
+        </div>
+      {% endif %}
       <div class="meta">
         {% if review_count and avg_rating %}
           ★ {{ '%.2f'|format(avg_rating) }} ({{ review_count }} review{{ '' if review_count==1 else 's' }})
@@ -89,15 +117,23 @@
         {% else %}
           <div class="meta">No photo uploaded</div>
         {% endif %}
-        {% if current_user.is_authenticated and current_user.id == user.id %}
-          <div style="margin-top:10px;">
-            <a class="btn btn-primary" href="{{ url_for('edit_profile') }}">Edit Profile</a>
+        {% if is_self %}
+          <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px;">
+            <a class="btn btn-primary" href="{{ url_for('edit_profile') }}">Edit profile</a>
+            {% if stripe_enabled and not user.subscription_active %}
+              <a class="btn btn-primary" href="{{ url_for('subscribe') }}">Unlock direct messages</a>
+            {% endif %}
           </div>
-        {% elif current_user.is_authenticated and current_user.id != user.id %}
+        {% elif show_no_dm_banner %}
+          <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px;">
+            <a class="btn btn-primary" href="{{ url_for('post_project') }}">Post a project to connect</a>
+            <a class="btn" href="{{ url_for('view_projects') }}">Browse open projects</a>
+          </div>
+        {% elif current_user.is_authenticated %}
           <div style="margin-top:10px;">
             <a class="btn btn-primary" href="{{ url_for('start_conversation', user_id=user.id) }}">Message</a>
           </div>
-        {% elif not current_user.is_authenticated %}
+        {% else %}
           <div style="margin-top:10px;">
             <a class="btn btn-primary" href="{{ url_for('login', next=request.path) }}">Log in to message</a>
           </div>

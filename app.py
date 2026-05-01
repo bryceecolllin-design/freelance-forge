@@ -453,6 +453,15 @@ def _profile_tag_slugs(prof) -> list:
         return []
     return [s.strip().lower() for s in str(prof.skill_tags).split(",") if s.strip()]
 
+
+def _contractor_accepts_directory_dm(user) -> bool:
+    """Cold DMs from the directory / profile sidebar require an active subscription when Stripe billing is on."""
+    if not stripe_enabled:
+        return True
+    if not user or not getattr(user, "is_contractor", False):
+        return True
+    return bool(getattr(user, "subscription_active", False))
+
 def _contractor_rating_stats(user_id: int):
     rows = Review.query.filter_by(contractor_id=user_id).all()
     if not rows:
@@ -931,9 +940,6 @@ def contractor_profile(user_id):
     u = User.query.get_or_404(user_id)
     if not u.is_contractor:
         abort(404)
-    if stripe_enabled and not u.subscription_active:
-        if not current_user.is_authenticated or current_user.id != u.id:
-            abort(404)
     prof = ContractorProfile.query.filter_by(user_id=u.id).first()
     if not prof:
         prof = ContractorProfile(
@@ -944,6 +950,10 @@ def contractor_profile(user_id):
     from_models = Review.query.filter_by(contractor_id=u.id).order_by(Review.created_at.desc()).all()
     count = len(from_models)
     avg = round(sum(r.rating for r in from_models) / count, 2) if count else 0.0
+    is_self = current_user.is_authenticated and current_user.id == u.id
+    direct_contact_available = _contractor_accepts_directory_dm(u)
+    show_no_dm_banner = stripe_enabled and not direct_contact_available and not is_self
+
     return render_template(
         "contractor_profile.html",
         user=u,
@@ -954,6 +964,9 @@ def contractor_profile(user_id):
         review_count=count,
         profile_tags=_profile_tag_slugs(prof),
         skill_tag_labels=dict(SKILL_TAGS),
+        is_self=is_self,
+        direct_contact_available=direct_contact_available,
+        show_no_dm_banner=show_no_dm_banner,
     )
 
 @app.route("/profile/edit", methods=["GET", "POST"])
@@ -1338,7 +1351,6 @@ def hire_trade(slug):
         projects_url=url_for("view_projects"),
         skill_tag_choices=SKILL_TAGS,
         current_slug=slug,
-        directory_requires_subscription=stripe_enabled,
     )
 
 
@@ -1353,9 +1365,6 @@ def contractors():
     query = db.session.query(User, ContractorProfile).join(
         ContractorProfile, ContractorProfile.user_id == User.id, isouter=True
     ).filter(User.is_contractor == True)
-    # Customers find subscribed contractors here (direct message). Posting a job still reaches bidders separately.
-    if stripe_enabled:
-        query = query.filter(User.subscription_active == True)
 
     if tag and tag in SKILL_TAG_SLUGS:
         needle = f",{tag},"
@@ -1409,7 +1418,6 @@ def contractors():
         search_label=search_label,
         skill_tag_choices=SKILL_TAGS,
         tag_filter=tag if tag in SKILL_TAG_SLUGS else "",
-        directory_requires_subscription=stripe_enabled,
     )
 
 # -------------------- Messaging --------------------
@@ -1493,6 +1501,13 @@ def conversation(conv_id):
 def start_conversation(user_id):
     if user_id == current_user.id:
         abort(400)
+    other = User.query.get_or_404(user_id)
+    if not _contractor_accepts_directory_dm(other):
+        flash(
+            "This contractor isn’t accepting direct messages through the directory yet. Post a project to reach them and collect bids.",
+            "info",
+        )
+        return redirect(url_for("contractor_profile", user_id=user_id))
     stop = require_subscription_for_new_dm()
     if stop:
         return stop

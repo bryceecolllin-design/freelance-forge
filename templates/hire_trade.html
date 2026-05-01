@@ -5,12 +5,12 @@
   <h1 style="margin-top:0;font-size:1.5rem;">Find {{ tag_label|lower }} pros on Freelance-Forge</h1>
   <p class="meta" style="font-size:15px;line-height:1.55;">
     Freelance-Forge connects customers with contractors for fabrication, construction, design, and more.
-    This page highlights people who tag themselves with <strong>{{ tag_label }}</strong> and appear in the public directory.
+    This page highlights people who tag themselves with <strong>{{ tag_label }}</strong> in the public directory.
   </p>
-  {% if directory_requires_subscription %}
+  {% if stripe_enabled %}
     <p class="meta" style="font-size:15px;line-height:1.55;">
-      The <strong>Find contractors</strong> list only includes contractors with an <strong>active subscription</strong>, so customers can contact them directly—like calling a plumber—without posting a job first.
-      Posting a project for bids still works the same way for everyone eligible to bid.
+      <strong>Hybrid directory:</strong> everyone with a contractor profile can appear (good for trust and SEO).
+      Contractors with an active subscription are <strong>available for direct contact</strong>; others are visible as <strong>profile only</strong>—customers post a project to reach them through bids.
     </p>
   {% endif %}
 

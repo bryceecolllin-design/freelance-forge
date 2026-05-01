@@ -4,10 +4,11 @@
 <section class="panel">
   <h2 style="margin-top:0;">Contractors</h2>
 
-  {% if directory_requires_subscription %}
+  {% if stripe_enabled %}
     <p class="meta" style="margin:0 0 12px 0;line-height:1.45;">
-      <strong>Subscribed contractors only</strong> in this directory—find someone nearby and message them without posting a job.
-      To cast a wider net (including pros who haven’t subscribed yet), <a href="{{ url_for('view_projects') }}">browse open projects</a> or <a href="{{ url_for('post_project') }}">post a project</a> for bids.
+      <strong>Directory + job board:</strong> all contractor profiles are listed for discovery.
+      <span class="chip" style="margin-left:4px;">Available for direct contact</span> means you can message them without posting a job.
+      <span class="chip">Profile only</span> means browse their background, then <a href="{{ url_for('post_project') }}">post a project</a> to reach them through bids.
     </p>
   {% endif %}
 
@@ -73,15 +74,33 @@
                 {% endif %}
                 • {{ (u.profile.location if u.profile and u.profile.location else 'No location') }}
                 {% if u.profile and u.profile.remote_ok %} • Remote OK{% endif %}
+                {% if stripe_enabled %}
+                  {% if u.subscription_active %}
+                    • <span class="chip" style="margin-top:4px;display:inline-block;">Available for direct contact</span>
+                  {% else %}
+                    • <span class="chip" style="margin-top:4px;display:inline-block;">Profile only</span>
+                  {% endif %}
+                {% endif %}
               </div>
               {% if u.profile and u.profile.skills %}
                 <div class="meta" style="margin-top:6px;">{{ u.profile.skills }}</div>
               {% endif %}
               <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
-                {% if current_user.is_authenticated %}
-                  <a class="btn" href="{{ url_for('start_conversation', user_id=u.id) }}">Message</a>
+                {% if not stripe_enabled %}
+                  {% if current_user.is_authenticated %}
+                    <a class="btn btn-primary" href="{{ url_for('start_conversation', user_id=u.id) }}">Message</a>
+                  {% else %}
+                    <a class="btn btn-primary" href="{{ url_for('login', next=request.full_path) }}">Log in to message</a>
+                  {% endif %}
+                {% elif u.subscription_active %}
+                  {% if current_user.is_authenticated %}
+                    <a class="btn btn-primary" href="{{ url_for('start_conversation', user_id=u.id) }}">Message</a>
+                  {% else %}
+                    <a class="btn btn-primary" href="{{ url_for('login', next=request.full_path) }}">Log in to message</a>
+                  {% endif %}
                 {% else %}
-                  <a class="btn" href="{{ url_for('login', next=request.full_path) }}">Log in to message</a>
+                  <a class="btn btn-primary" href="{{ url_for('post_project') }}">Post a job to connect</a>
+                  <a class="btn" href="{{ url_for('contractor_profile', user_id=u.id) }}">View profile</a>
                 {% endif %}
 
                 {% if u.profile and u.profile.lat is not none and u.profile.lon is not none %}
