@@ -931,6 +931,9 @@ def contractor_profile(user_id):
     u = User.query.get_or_404(user_id)
     if not u.is_contractor:
         abort(404)
+    if stripe_enabled and not u.subscription_active:
+        if not current_user.is_authenticated or current_user.id != u.id:
+            abort(404)
     prof = ContractorProfile.query.filter_by(user_id=u.id).first()
     if not prof:
         prof = ContractorProfile(
@@ -1333,6 +1336,9 @@ def hire_trade(slug):
         tag_label=label,
         contractors_url=url_for("contractors", tag=slug),
         projects_url=url_for("view_projects"),
+        skill_tag_choices=SKILL_TAGS,
+        current_slug=slug,
+        directory_requires_subscription=stripe_enabled,
     )
 
 
@@ -1347,6 +1353,9 @@ def contractors():
     query = db.session.query(User, ContractorProfile).join(
         ContractorProfile, ContractorProfile.user_id == User.id, isouter=True
     ).filter(User.is_contractor == True)
+    # Customers find subscribed contractors here (direct message). Posting a job still reaches bidders separately.
+    if stripe_enabled:
+        query = query.filter(User.subscription_active == True)
 
     if tag and tag in SKILL_TAG_SLUGS:
         needle = f",{tag},"
@@ -1400,6 +1409,7 @@ def contractors():
         search_label=search_label,
         skill_tag_choices=SKILL_TAGS,
         tag_filter=tag if tag in SKILL_TAG_SLUGS else "",
+        directory_requires_subscription=stripe_enabled,
     )
 
 # -------------------- Messaging --------------------

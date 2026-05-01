@@ -5,10 +5,26 @@
   <h1 style="margin-top:0;font-size:1.5rem;">Find {{ tag_label|lower }} pros on Freelance-Forge</h1>
   <p class="meta" style="font-size:15px;line-height:1.55;">
     Freelance-Forge connects customers with contractors for fabrication, construction, design, and more.
-    This page highlights contractors who tag themselves with <strong>{{ tag_label }}</strong>—the same search and profiles you already use on the site.
+    This page highlights people who tag themselves with <strong>{{ tag_label }}</strong> and appear in the public directory.
   </p>
+  {% if directory_requires_subscription %}
+    <p class="meta" style="font-size:15px;line-height:1.55;">
+      The <strong>Find contractors</strong> list only includes contractors with an <strong>active subscription</strong>, so customers can contact them directly—like calling a plumber—without posting a job first.
+      Posting a project for bids still works the same way for everyone eligible to bid.
+    </p>
+  {% endif %}
+
+  <div style="margin-top:16px;">
+    <label for="hire-trade-nav" style="display:block;margin-bottom:6px;font-weight:600;">Browse another trade</label>
+    <select id="hire-trade-nav" style="max-width:28rem;" onchange="var v=this.value; if(v) window.location.href=v;">
+      {% for s, lab in skill_tag_choices %}
+        <option value="{{ url_for('hire_trade', slug=s) }}" {% if s == current_slug %}selected{% endif %}>{{ lab }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
   <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:18px;">
-    <a class="btn btn-primary" href="{{ contractors_url }}">Browse contractors ({{ tag_label }})</a>
+    <a class="btn btn-primary" href="{{ contractors_url }}">Find contractors ({{ tag_label }})</a>
     <a class="btn" href="{{ projects_url }}">View open projects</a>
     <a class="btn" href="{{ url_for('register') }}">Get started</a>
   </div>

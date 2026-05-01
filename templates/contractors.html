@@ -4,6 +4,13 @@
 <section class="panel">
   <h2 style="margin-top:0;">Contractors</h2>
 
+  {% if directory_requires_subscription %}
+    <p class="meta" style="margin:0 0 12px 0;line-height:1.45;">
+      <strong>Subscribed contractors only</strong> in this directory—find someone nearby and message them without posting a job.
+      To cast a wider net (including pros who haven’t subscribed yet), <a href="{{ url_for('view_projects') }}">browse open projects</a> or <a href="{{ url_for('post_project') }}">post a project</a> for bids.
+    </p>
+  {% endif %}
+
   <form method="get" style="display:grid;gap:10px;margin-bottom:12px;">
     <div class="row">
       <div>
@@ -26,21 +33,22 @@
         </select>
       </div>
     </div>
-    <div><button class="btn btn-primary" type="submit">Filter</button></div>
-  </form>
-
-  <div class="card" style="margin-bottom:12px;">
-    <h3 style="margin:0 0 8px 0;font-size:1rem;">Filter by trade tag</h3>
-    <p class="meta" style="margin:0 0 8px 0;">Same tags contractors choose on their profile. <a href="{{ url_for('hire_trade', slug='welder') }}">Example: hire a welder</a></p>
-    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
-      {% for slug, label in skill_tag_choices %}
-        <a class="btn {% if tag_filter == slug %}btn-primary{% endif %}" href="{{ url_for('contractors', tag=slug) }}">{{ label }}</a>
-      {% endfor %}
-      {% if tag_filter %}
-        <a class="btn" href="{{ url_for('contractors') }}">Clear tag</a>
-      {% endif %}
+    <div class="row">
+      <div>
+        <label for="contractors-tag">Trade tag</label>
+        <select id="contractors-tag" name="tag">
+          <option value="">Any trade</option>
+          {% for slug, label in skill_tag_choices %}
+            <option value="{{ slug }}" {{ 'selected' if tag_filter == slug else '' }}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="meta" style="display:flex;align-items:flex-end;padding-bottom:4px;">
+        <a href="{{ url_for('hire_trade', slug='welder') }}">About hire pages</a>
+      </div>
     </div>
-  </div>
+    <div><button class="btn btn-primary" type="submit">Apply filters</button></div>
+  </form>
 
   <div class="card">
     <div id="contractors-map" style="height:320px;border-radius:8px;"></div>
