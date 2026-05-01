@@ -29,6 +29,19 @@
     <div><button class="btn btn-primary" type="submit">Filter</button></div>
   </form>
 
+  <div class="card" style="margin-bottom:12px;">
+    <h3 style="margin:0 0 8px 0;font-size:1rem;">Filter by trade tag</h3>
+    <p class="meta" style="margin:0 0 8px 0;">Same tags contractors choose on their profile. <a href="{{ url_for('hire_trade', slug='welder') }}">Example: hire a welder</a></p>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+      {% for slug, label in skill_tag_choices %}
+        <a class="btn {% if tag_filter == slug %}btn-primary{% endif %}" href="{{ url_for('contractors', tag=slug) }}">{{ label }}</a>
+      {% endfor %}
+      {% if tag_filter %}
+        <a class="btn" href="{{ url_for('contractors') }}">Clear tag</a>
+      {% endif %}
+    </div>
+  </div>
+
   <div class="card">
     <div id="contractors-map" style="height:320px;border-radius:8px;"></div>
   </div>
@@ -57,7 +70,11 @@
                 <div class="meta" style="margin-top:6px;">{{ u.profile.skills }}</div>
               {% endif %}
               <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
-                <a class="btn" href="{{ url_for('start_conversation', user_id=u.id) }}">Message</a>
+                {% if current_user.is_authenticated %}
+                  <a class="btn" href="{{ url_for('start_conversation', user_id=u.id) }}">Message</a>
+                {% else %}
+                  <a class="btn" href="{{ url_for('login', next=request.full_path) }}">Log in to message</a>
+                {% endif %}
 
                 {% if u.profile and u.profile.lat is not none and u.profile.lon is not none %}
                   <button

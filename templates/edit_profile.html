@@ -56,6 +56,19 @@
       <textarea id="skills" name="skills" placeholder="e.g., CAD, 3D printing, machining…">{{ profile.skills or '' }}</textarea>
     </div>
 
+    <div class="card" style="display:grid;gap:10px;">
+      <h3 style="margin:0;">What you do (tags)</h3>
+      <p class="meta" style="margin:0;">Pick any that apply. These power the contractor directory filters and public “hire a …” pages—no extra features, just clearer discovery.</p>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;">
+        {% for slug, label in skill_tag_choices %}
+          <label class="chip" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
+            <input type="checkbox" name="skill_tags" value="{{ slug }}" {% if slug in selected_skill_tags %}checked{% endif %}>
+            {{ label }}
+          </label>
+        {% endfor %}
+      </div>
+    </div>
+
     <div class="row">
       <div>
         <label for="experience">Experience</label>

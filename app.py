@@ -25,7 +25,7 @@ from flask_login import (
 )
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
-from sqlalchemy import or_, and_, inspect, text
+from sqlalchemy import or_, and_, inspect, text, func
 from flask import Blueprint
 
 # Optional Stripe
@@ -121,6 +121,8 @@ class ContractorProfile(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     display_name = db.Column(db.String(160))
     skills = db.Column(db.Text)
+    # Comma-separated slugs from SKILL_TAGS (e.g. "welder,machinist") for browse/filter/SEO
+    skill_tags = db.Column(db.Text)
     bio = db.Column(db.Text)
     experience = db.Column(db.Text)
     education = db.Column(db.Text)
@@ -301,19 +303,21 @@ def verify_user_password(user: "User", plain: str) -> bool:
 
 
 def ensure_schema():
-    """Create tables; apply legacy ALTERs only for old SQLite DBs missing columns."""
+    """Create tables; apply additive ALTERs when columns are missing (SQLite + Postgres)."""
     db.create_all()
-    if db.engine.dialect.name != "sqlite":
-        return
     insp = inspect(db.engine)
-    if not insp.has_table("user"):
-        return
-    cols = {c["name"] for c in insp.get_columns("user")}
-    with db.engine.begin() as conn:
-        if "stripe_customer_id" not in cols:
-            conn.execute(text("ALTER TABLE user ADD COLUMN stripe_customer_id VARCHAR(255)"))
-        if "stripe_subscription_id" not in cols:
-            conn.execute(text("ALTER TABLE user ADD COLUMN stripe_subscription_id VARCHAR(255)"))
+    if insp.has_table("user"):
+        cols = {c["name"] for c in insp.get_columns("user")}
+        with db.engine.begin() as conn:
+            if "stripe_customer_id" not in cols:
+                conn.execute(text("ALTER TABLE user ADD COLUMN stripe_customer_id VARCHAR(255)"))
+            if "stripe_subscription_id" not in cols:
+                conn.execute(text("ALTER TABLE user ADD COLUMN stripe_subscription_id VARCHAR(255)"))
+    if insp.has_table("contractor_profile"):
+        cols = {c["name"] for c in insp.get_columns("contractor_profile")}
+        if "skill_tags" not in cols:
+            with db.engine.begin() as conn:
+                conn.execute(text("ALTER TABLE contractor_profile ADD COLUMN skill_tags TEXT"))
 
 
 def _stripe_sub_status_ok(status):
@@ -407,6 +411,47 @@ def require_subscription_to_bid():
         flash("You need an active contractor subscription to place bids. Customers post projects for free.", "error")
         return redirect(url_for("subscribe"))
     return None
+
+
+def require_subscription_for_new_dm():
+    """When billing is on, contractors (in contractor role) without a subscription cannot start new threads."""
+    if not stripe_enabled or not current_user.is_authenticated:
+        return None
+    if active_role() != "contractor" or not current_user.is_contractor:
+        return None
+    if current_user.subscription_active:
+        return None
+    flash("Contractor subscriptions unlock starting new conversations about posted work. You can still browse projects and contractors.", "error")
+    return redirect(url_for("subscribe"))
+
+
+# Curated marketing tags (slug, label). Stored comma-separated on ContractorProfile.skill_tags
+SKILL_TAGS = (
+    ("welder", "Welding / fabrication"),
+    ("engineer", "Engineering / CAD"),
+    ("painter", "Painting"),
+    ("photographer", "Photography / media"),
+    ("machinist", "Machining / CNC"),
+    ("electrician", "Electrical"),
+    ("plumber", "Plumbing"),
+    ("hvac", "HVAC"),
+    ("carpenter", "Carpentry"),
+    ("designer", "Design / 3D modeling"),
+)
+SKILL_TAG_SLUGS = {s for s, _ in SKILL_TAGS}
+
+
+def _normalize_skill_tags_from_form(values) -> str:
+    """Return comma-separated sorted slugs from checkbox/list input."""
+    allowed = SKILL_TAG_SLUGS
+    out = sorted({str(v).strip().lower() for v in (values or []) if str(v).strip().lower() in allowed})
+    return ",".join(out)
+
+
+def _profile_tag_slugs(prof) -> list:
+    if not prof or not getattr(prof, "skill_tags", None) or not str(prof.skill_tags).strip():
+        return []
+    return [s.strip().lower() for s in str(prof.skill_tags).split(",") if s.strip()]
 
 def _contractor_rating_stats(user_id: int):
     rows = Review.query.filter_by(contractor_id=user_id).all()
@@ -712,7 +757,9 @@ def register():
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
+    next_page = (request.args.get("next") or "").strip()
     if request.method == "POST":
+        next_page = (request.form.get("next") or "").strip()
         email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
         u = User.query.filter_by(email=email).first()
@@ -720,9 +767,11 @@ def login():
             login_user(u)
             session["active_role"] = "contractor" if u.is_contractor else "customer"
             flash("Welcome back!", "success")
+            if next_page.startswith("/") and not next_page.startswith("//"):
+                return redirect(next_page)
             return redirect(url_for("dashboard"))
         flash("Invalid email or password.", "error")
-    return render_template("login.html")
+    return render_template("login.html", next_page=next_page)
 
 @app.route("/logout")
 @login_required
@@ -747,7 +796,7 @@ def google_site_verification():
 @app.route("/sitemap.xml")
 def sitemap():
     """Static URL list for search engines (submit in Google Search Console)."""
-    paths = (
+    paths = [
         "/",
         "/projects",
         "/contractors",
@@ -755,7 +804,8 @@ def sitemap():
         "/register",
         "/about",
         "/contact",
-    )
+    ]
+    paths.extend(f"/hire/{slug}" for slug in sorted(SKILL_TAG_SLUGS))
     parts = [
         '<?xml version="1.0" encoding="UTF-8"?>',
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
@@ -877,16 +927,31 @@ def _profile_photo_url_for(user_id: int):
     return None
 
 @app.route("/contractor/<int:user_id>")
-@login_required
 def contractor_profile(user_id):
     u = User.query.get_or_404(user_id)
+    if not u.is_contractor:
+        abort(404)
     prof = ContractorProfile.query.filter_by(user_id=u.id).first()
+    if not prof:
+        prof = ContractorProfile(
+            user_id=u.id,
+            display_name=u.display_name or u.email,
+        )
     photo_url = _profile_photo_url_for(u.id)
     from_models = Review.query.filter_by(contractor_id=u.id).order_by(Review.created_at.desc()).all()
     count = len(from_models)
     avg = round(sum(r.rating for r in from_models) / count, 2) if count else 0.0
-    return render_template("contractor_profile.html", user=u, profile=prof, photo_url=photo_url,
-                           reviews=from_models, avg_rating=avg, review_count=count)
+    return render_template(
+        "contractor_profile.html",
+        user=u,
+        profile=prof,
+        photo_url=photo_url,
+        reviews=from_models,
+        avg_rating=avg,
+        review_count=count,
+        profile_tags=_profile_tag_slugs(prof),
+        skill_tag_labels=dict(SKILL_TAGS),
+    )
 
 @app.route("/profile/edit", methods=["GET", "POST"])
 @login_required
@@ -905,6 +970,7 @@ def edit_profile():
     if request.method == "POST":
         prof.display_name = request.form.get("display_name") or current_user.display_name or current_user.email
         prof.skills = request.form.get("skills")
+        prof.skill_tags = _normalize_skill_tags_from_form(request.form.getlist("skill_tags"))
         prof.bio = request.form.get("bio")
         prof.experience = request.form.get("experience")
         prof.education = request.form.get("education")
@@ -944,7 +1010,13 @@ def edit_profile():
         return redirect(url_for("contractor_profile", user_id=current_user.id))
 
     photo_url = _profile_photo_url_for(current_user.id)
-    return render_template("edit_profile.html", profile=prof, photo_url=photo_url)
+    return render_template(
+        "edit_profile.html",
+        profile=prof,
+        photo_url=photo_url,
+        skill_tag_choices=SKILL_TAGS,
+        selected_skill_tags=_profile_tag_slugs(prof),
+    )
 
 # -------------------- Projects --------------------
 CATEGORIES = [
@@ -954,7 +1026,6 @@ CATEGORIES = [
 ]
 
 @app.route("/projects")
-@login_required
 def view_projects():
     q = request.args.get("q", "").strip()
     location = request.args.get("location", "").strip()
@@ -1056,14 +1127,17 @@ def post_project():
     return render_template("post_project.html", categories=CATEGORIES)
 
 @app.route("/project/<int:project_id>", methods=["GET", "POST"])
-@login_required
 def project_detail(project_id):
     project = Project.query.get_or_404(project_id)
-    is_owner = (project.owner_id == current_user.id)
-    is_awarded_contractor = (current_user.is_authenticated and
-                             project.awarded_contractor_id == current_user.id)
+    is_owner = current_user.is_authenticated and (project.owner_id == current_user.id)
+    is_awarded_contractor = (
+        current_user.is_authenticated and project.awarded_contractor_id == current_user.id
+    )
 
     if request.method == "POST":
+        if not current_user.is_authenticated:
+            flash("Log in to bid on projects.", "info")
+            return redirect(url_for("login", next=request.path))
         # Bids only when open & not by owner
         if project.status != "open" or project.awarded_contractor_id:
             flash("Bidding is closed on this project.", "error")
@@ -1137,6 +1211,7 @@ def project_detail(project_id):
         existing_review=existing_review,
         can_bid=can_bid,
         needs_sub_to_bid=needs_sub_to_bid,
+        bids_detail_visible=current_user.is_authenticated,
     )
 
 @app.route("/project/<int:project_id>/accept/<int:bid_id>", methods=["POST"])
@@ -1245,17 +1320,38 @@ def submit_review(project_id):
     return redirect(url_for("contractor_profile", user_id=project.awarded_contractor_id))
 
 # -------------------- Contractors directory --------------------
+@app.route("/hire/<slug>")
+def hire_trade(slug):
+    """Lightweight SEO entry: explains intent and links into existing contractor browse + projects."""
+    slug = (slug or "").strip().lower()
+    if slug not in SKILL_TAG_SLUGS:
+        abort(404)
+    label = dict(SKILL_TAGS)[slug]
+    return render_template(
+        "hire_trade.html",
+        slug=slug,
+        tag_label=label,
+        contractors_url=url_for("contractors", tag=slug),
+        projects_url=url_for("view_projects"),
+    )
+
+
 @app.route("/contractors")
-@login_required
 def contractors():
     q = request.args.get("q", "").strip()
     location = request.args.get("location", "").strip()
     radius = request.args.get("radius", "").strip()
     remote_ok = bool(request.args.get("remote_ok"))
+    tag = (request.args.get("tag") or "").strip().lower()
 
     query = db.session.query(User, ContractorProfile).join(
         ContractorProfile, ContractorProfile.user_id == User.id, isouter=True
     ).filter(User.is_contractor == True)
+
+    if tag and tag in SKILL_TAG_SLUGS:
+        needle = f",{tag},"
+        wrapped = func.concat(",", func.coalesce(ContractorProfile.skill_tags, ""), ",")
+        query = query.filter(wrapped.like(f"%{needle}%"))
 
     if q:
         like = f"%{q}%"
@@ -1302,6 +1398,8 @@ def contractors():
         search_lat=search_lat,
         search_lon=search_lon,
         search_label=search_label,
+        skill_tag_choices=SKILL_TAGS,
+        tag_filter=tag if tag in SKILL_TAG_SLUGS else "",
     )
 
 # -------------------- Messaging --------------------
@@ -1385,6 +1483,9 @@ def conversation(conv_id):
 def start_conversation(user_id):
     if user_id == current_user.id:
         abort(400)
+    stop = require_subscription_for_new_dm()
+    if stop:
+        return stop
     conv = _get_or_create_conversation(current_user.id, user_id, None)
     return redirect(url_for("conversation", conv_id=conv.id))
 
@@ -1404,6 +1505,10 @@ def start_conversation_qs():
         other_id = project.owner_id
     if other_id == current_user.id or other_id is None:
         abort(400)
+    if current_user.id != project.owner_id:
+        stop = require_subscription_for_new_dm()
+        if stop:
+            return stop
     conv = _get_or_create_conversation(current_user.id, other_id, pid)
     return redirect(url_for("conversation", conv_id=conv.id))
 

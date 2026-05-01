@@ -14,6 +14,19 @@
         {% if profile.remote_ok %} • Open to remote{% endif %}
       </div>
 
+      {% if profile_tags and profile_tags|length %}
+        <div class="card" style="margin-top:12px;">
+          <h3 style="margin:0;">Tags</h3>
+          <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:8px;">
+            {% for slug in profile_tags %}
+              {% if slug in skill_tag_labels %}
+                <a class="chip" href="{{ url_for('contractors', tag=slug) }}">{{ skill_tag_labels[slug] }}</a>
+              {% endif %}
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+
       {% if profile.skills %}
         <div class="card" style="margin-top:12px;">
           <h3 style="margin:0;">Skills</h3>
@@ -76,9 +89,17 @@
         {% else %}
           <div class="meta">No photo uploaded</div>
         {% endif %}
-        {% if current_user.id == user.id %}
+        {% if current_user.is_authenticated and current_user.id == user.id %}
           <div style="margin-top:10px;">
             <a class="btn btn-primary" href="{{ url_for('edit_profile') }}">Edit Profile</a>
+          </div>
+        {% elif current_user.is_authenticated and current_user.id != user.id %}
+          <div style="margin-top:10px;">
+            <a class="btn btn-primary" href="{{ url_for('start_conversation', user_id=user.id) }}">Message</a>
+          </div>
+        {% elif not current_user.is_authenticated %}
+          <div style="margin-top:10px;">
+            <a class="btn btn-primary" href="{{ url_for('login', next=request.path) }}">Log in to message</a>
           </div>
         {% endif %}
       </div>

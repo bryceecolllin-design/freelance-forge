@@ -164,7 +164,16 @@
   <div class="card" style="margin-top:12px;">
     <h3 style="margin:0;">Bids ({{ bids|length }})</h3>
 
-    {% if bids and bids|length %}
+    {% if not bids_detail_visible %}
+      {% if bids|length > 0 %}
+        <p class="meta" style="margin-top:10px;">
+          This project has {{ bids|length }} bid(s). Amounts and notes are visible to signed-in members.
+          <a href="{{ url_for('login', next=request.path) }}">Log in</a> or <a href="{{ url_for('register') }}">create an account</a> to see details.
+        </p>
+      {% else %}
+        <div class="meta" style="margin-top:10px;">No bids yet.</div>
+      {% endif %}
+    {% elif bids and bids|length %}
       <ul class="list" style="margin-top:8px;">
         {% for b in bids %}
           <li>
@@ -199,7 +208,7 @@
         {% endfor %}
       </ul>
     {% else %}
-      <div class="meta">No bids yet.</div>
+      <div class="meta" style="margin-top:10px;">No bids yet.</div>
     {% endif %}
   </div>
 </section>

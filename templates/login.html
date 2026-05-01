@@ -4,6 +4,7 @@
 <section class="panel" style="max-width:520px;margin:0 auto;">
   <h2 style="margin-top:0;">Login</h2>
   <form method="post" action="{{ url_for('login') }}" style="display:grid;gap:12px;">
+    {% if next_page %}<input type="hidden" name="next" value="{{ next_page }}">{% endif %}
     <div>
       <label for="email">Email</label>
       <input id="email" type="email" name="email" required placeholder="you@example.com" autocomplete="username">
