@@ -18,6 +18,15 @@
         </div>
         {% if search_label %}<div class="meta" style="margin-top:4px;">Map: {{ search_label }}</div>{% endif %}
       </div>
+      <div>
+        <label for="radius_mi">Search radius</label>
+        <select id="radius_mi" name="radius_mi">
+          {% for r in [10, 25, 50, 100, 200] %}
+            <option value="{{ r }}" {% if radius_mi == r %}selected{% endif %}>Within {{ r }} mi</option>
+          {% endfor %}
+        </select>
+        <div class="meta" style="margin-top:4px;">Used with the location field.</div>
+      </div>
     </div>
     <div class="row">
       <div>

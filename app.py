@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import math
 import logging
 import threading
 import datetime as dt
@@ -278,13 +279,32 @@ def geocode_nominatim(query: str):
         return None
 
 
-def _geo_bbox_match(lat_col, lon_col, lat0: float, lon0: float, delta: float = 0.55):
-    """Rough bounding box (~30–40 mi); pairs with text match for rows without coordinates."""
+_RADIUS_MILES_OPTIONS = (10, 25, 50, 100, 200)
+
+
+def _parse_radius_miles(raw, default: int = 50) -> int:
+    """Miles from search center for location filters (contractors + projects)."""
+    try:
+        v = int(float(str(raw or "").strip()))
+    except (TypeError, ValueError):
+        return default
+    if v in _RADIUS_MILES_OPTIONS:
+        return v
+    return default
+
+
+def _geo_radius_match(lat_col, lon_col, lat0: float, lon0: float, radius_miles: float):
+    """Approximate lat/lon bounding box for a search radius in miles (Nominatim center)."""
+    # ~69 miles per degree latitude; longitude shrinks with cos(latitude)
+    dlat = radius_miles / 69.172
+    coslat = math.cos(math.radians(lat0))
+    coslat = max(coslat, 0.25)
+    dlon = radius_miles / (69.172 * coslat)
     return and_(
         lat_col.isnot(None),
         lon_col.isnot(None),
-        lat_col.between(lat0 - delta, lat0 + delta),
-        lon_col.between(lon0 - delta, lon0 + delta),
+        lat_col.between(lat0 - dlat, lat0 + dlat),
+        lon_col.between(lon0 - dlon, lon0 + dlon),
     )
 
 
@@ -1047,6 +1067,7 @@ def view_projects():
     location = request.args.get("location", "").strip()
     category = request.args.get("category", "").strip()
     remote_ok = request.args.get("remote_ok")
+    radius_mi = _parse_radius_miles(request.args.get("radius_mi", ""))
     projects = Project.query.filter(Project.status == "open")
 
     if q:
@@ -1062,7 +1083,7 @@ def view_projects():
         if geo:
             search_lat, search_lon = geo["lat"], geo["lon"]
             search_label = geo["display_name"]
-            geo_match = _geo_bbox_match(Project.lat, Project.lon, geo["lat"], geo["lon"])
+            geo_match = _geo_radius_match(Project.lat, Project.lon, geo["lat"], geo["lon"], float(radius_mi))
             if text_match is not None:
                 projects = projects.filter(or_(geo_match, text_match))
             else:
@@ -1084,6 +1105,7 @@ def view_projects():
         search_lat=search_lat,
         search_lon=search_lon,
         search_label=search_label,
+        radius_mi=radius_mi,
     )
 
 @app.route("/project/post", methods=["GET", "POST"])
@@ -1358,7 +1380,7 @@ def hire_trade(slug):
 def contractors():
     q = request.args.get("q", "").strip()
     location = request.args.get("location", "").strip()
-    radius = request.args.get("radius", "").strip()
+    radius_mi = _parse_radius_miles(request.args.get("radius_mi", request.args.get("radius", "")))
     remote_ok = bool(request.args.get("remote_ok"))
     tag = (request.args.get("tag") or "").strip().lower()
 
@@ -1387,7 +1409,9 @@ def contractors():
         if geo:
             search_lat, search_lon = geo["lat"], geo["lon"]
             search_label = geo["display_name"]
-            geo_match = _geo_bbox_match(ContractorProfile.lat, ContractorProfile.lon, geo["lat"], geo["lon"])
+            geo_match = _geo_radius_match(
+                ContractorProfile.lat, ContractorProfile.lon, geo["lat"], geo["lon"], float(radius_mi)
+            )
             if text_match is not None:
                 query = query.filter(or_(geo_match, text_match))
             else:
@@ -1411,7 +1435,7 @@ def contractors():
         contractors=contractors,
         q=q,
         location=location,
-        radius=radius,
+        radius_mi=radius_mi,
         remote_ok=remote_ok,
         search_lat=search_lat,
         search_lon=search_lon,
